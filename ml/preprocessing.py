@@ -52,7 +52,7 @@ def clean_text(text):
 
     # Lemmatize
     tokens = [
-        LEMMATIZER.lemmatize(word)
+        LEMMATIZER.lemmatize(word, pos="v")
         for word in tokens
     ]
 
