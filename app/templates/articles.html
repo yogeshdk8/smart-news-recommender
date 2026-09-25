@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Articles{% endblock %}
+{% block content %}
+<h2>Latest Articles</h2>
+{% if not articles %}
+  <p class="text-muted">No articles yet. Run the seed script to load some in.</p>
+{% endif %}
+<div class="list-group">
+  {% for article in articles %}
+    <a href="{{ url_for('main.view_article', article_id=article.id) }}"
+       class="list-group-item list-group-item-action">
+      <div class="d-flex w-100 justify-content-between">
+        <h5 class="mb-1">{{ article.title }}</h5>
+        <small class="text-muted">{{ article.category }}</small>
+      </div>
+      <small class="text-muted">{{ article.source }}</small>
+    </a>
+  {% endfor %}
+</div>
+{% endblock %}
