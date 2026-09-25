@@ -13,3 +13,7 @@ data/raw/
 .ipynb_checkpoints/
 
 .vscode/
+# Phase 6 NCF generated model artifacts
+data/processed/ncf_model.keras
+data/processed/ncf_user_id_map.json
+data/processed/ncf_article_id_map.json
