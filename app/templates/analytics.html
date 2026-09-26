@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics{% endblock %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <h1 class="mb-2">Recommendation Analytics</h1>
+
+    <p class="text-muted mb-4">
+        Overview of article engagement and recommendation performance.
+    </p>
+
+    <!-- Hit Rate -->
+
+    <div class="row mb-4">
+
+        <div class="col-md-6">
+
+            <div class="card shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <h5 class="card-title">
+                        System Hit Rate@5
+                    </h5>
+
+                    <div class="display-5 fw-bold mb-2">
+                        {{ hit_rate }}
+                    </div>
+
+                    <p class="text-muted mb-0">
+                        Evaluated on {{ evaluated_users }} users.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="col-md-6">
+
+            <div class="card shadow-sm h-100">
+
+                <div class="card-body">
+
+                    <h5 class="card-title">
+                        Evaluation Method
+                    </h5>
+
+                    <p class="mb-2">
+                        Leave-one-out evaluation.
+                    </p>
+
+                    <p class="text-muted mb-0">
+                        The most recent interaction for each eligible
+                        user is hidden and checked against the top-5
+                        recommendations.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Views Over Time -->
+
+    <div class="card shadow-sm mb-4">
+
+        <div class="card-body">
+
+            <h5 class="card-title mb-3">
+                Views Over Time
+            </h5>
+
+            <div id="views-chart"></div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Category Breakdown -->
+
+    <div class="card shadow-sm mb-4">
+
+        <div class="card-body">
+
+            <h5 class="card-title mb-3">
+                Views by Category
+            </h5>
+
+            <div id="category-chart"></div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Explanation -->
+
+    <div class="alert alert-info">
+
+        <h5 class="alert-heading">
+            About this dashboard
+        </h5>
+
+        <p class="mb-2">
+            Recommendations combine content-based similarity with
+            neural collaborative filtering.
+        </p>
+
+        <p class="mb-0">
+            Hit Rate@5 is based on the current interaction history.
+            With a small number of users and interactions, the metric
+            may be unstable and should not be interpreted as a
+            definitive measure of production performance.
+        </p>
+
+    </div>
+
+</div>
+
+
+<!-- Plotly -->
+
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+<script>
+
+    const viewsDates = {{ views_dates | tojson }};
+    const viewsCounts = {{ views_counts | tojson }};
+
+    const categories = {{ categories | tojson }};
+    const categoryValues = {{ category_values | tojson }};
+
+
+    // Views over time
+
+    const viewsTrace = {
+        x: viewsDates,
+        y: viewsCounts,
+        type: "scatter",
+        mode: "lines+markers",
+        name: "Views"
+    };
+
+    const viewsLayout = {
+        title: "Article Views Over Time",
+        xaxis: {
+            title: "Date"
+        },
+        yaxis: {
+            title: "Number of Views"
+        },
+        margin: {
+            t: 50,
+            r: 20,
+            b: 60,
+            l: 60
+        }
+    };
+
+    Plotly.newPlot(
+        "views-chart",
+        [viewsTrace],
+        viewsLayout,
+        {
+            responsive: true
+        }
+    );
+
+
+    // Category breakdown
+
+    const categoryTrace = {
+        labels: categories,
+        values: categoryValues,
+        type: "pie",
+        hole: 0.3
+    };
+
+    const categoryLayout = {
+        title: "Article Views by Category",
+        margin: {
+            t: 50,
+            r: 20,
+            b: 20,
+            l: 20
+        }
+    };
+
+    Plotly.newPlot(
+        "category-chart",
+        [categoryTrace],
+        categoryLayout,
+        {
+            responsive: true
+        }
+    );
+
+</script>
+
+{% endblock %}

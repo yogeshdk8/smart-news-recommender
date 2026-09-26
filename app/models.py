@@ -18,12 +18,29 @@ from app import db
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
+
+    username = db.Column(
+        db.String(80),
+        unique=True,
+        nullable=False
+    )
+
+    email = db.Column(
+        db.String(120),
+        unique=True,
+        nullable=False
+    )
+
+    password_hash = db.Column(
+        db.String(255),
+        nullable=False
+    )
 
     interactions = db.relationship(
-        "Interaction", backref="user", lazy=True, cascade="all, delete-orphan"
+        "Interaction",
+        backref="user",
+        lazy=True,
+        cascade="all, delete-orphan"
     )
 
     def set_password(self, plain_password):
@@ -32,23 +49,51 @@ class User(UserMixin, db.Model):
 
     def check_password(self, plain_password):
         """Compare a plain-text password against the stored hash."""
-        return check_password_hash(self.password_hash, plain_password)
+        return check_password_hash(
+            self.password_hash,
+            plain_password
+        )
 
     def __repr__(self):
         return f"<User {self.username}>"
 
 
 class Article(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(300), nullable=False)
-    content = db.Column(db.Text)
-    category = db.Column(db.String(50))
-    source = db.Column(db.String(100))
-    url = db.Column(db.String(500))
-    published_at = db.Column(db.String(50))
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
+
+    title = db.Column(
+        db.String(300),
+        nullable=False
+    )
+
+    content = db.Column(
+        db.Text
+    )
+
+    category = db.Column(
+        db.String(50)
+    )
+
+    source = db.Column(
+        db.String(100)
+    )
+
+    url = db.Column(
+        db.String(500)
+    )
+
+    published_at = db.Column(
+        db.String(50)
+    )
 
     interactions = db.relationship(
-        "Interaction", backref="article", lazy=True, cascade="all, delete-orphan"
+        "Interaction",
+        backref="article",
+        lazy=True,
+        cascade="all, delete-orphan"
     )
 
     def __repr__(self):
@@ -56,11 +101,37 @@ class Article(db.Model):
 
 
 class Interaction(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    article_id = db.Column(db.Integer, db.ForeignKey("article.id"), nullable=False)
-    type = db.Column(db.String(20), nullable=False)  # "view" / "like" / "save"
-    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
+
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=False
+    )
+
+    article_id = db.Column(
+        db.Integer,
+        db.ForeignKey("article.id"),
+        nullable=False
+    )
+
+    type = db.Column(
+        db.String(20),
+        nullable=False
+    )  # "view" / "like" / "save"
+
+    timestamp = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(timezone.utc)
+    )
 
     def __repr__(self):
-        return f"<Interaction user={self.user_id} article={self.article_id} type={self.type}>"
+        return (
+            f"<Interaction "
+            f"user={self.user_id} "
+            f"article={self.article_id} "
+            f"type={self.type}>"
+        )

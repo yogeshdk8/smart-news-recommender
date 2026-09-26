@@ -146,6 +146,42 @@ def content_based_recommend(user_id, top_n=10):
     return scored[:top_n]
 
 
+def recommend_from_interactions(interactions, exclude_ids=None, top_n=10):
+    """
+    Lower-level version of content_based_recommend: builds a profile from
+    an explicit list of (article_id, type) pairs instead of querying the
+    live database. Used by ml/evaluate.py to test the model on held-out
+    data (Phase 7's precision@K), and reusable anywhere you want to
+    simulate "what would this user's recommendations look like."
+    """
+    vectorizer, matrix, article_ids, id_to_row = load_content_artifacts()
+    exclude_ids = exclude_ids or set()
+
+    rows, weights = [], []
+    for article_id, itype in interactions:
+        row_idx = id_to_row.get(article_id)
+        if row_idx is None:
+            continue
+        rows.append(matrix[row_idx].toarray()[0])
+        weights.append(INTERACTION_WEIGHTS.get(itype, 1.0))
+
+    if not rows:
+        return []
+
+    rows = np.array(rows)
+    weights = np.array(weights).reshape(-1, 1)
+    profile = (rows * weights).sum(axis=0) / weights.sum()
+
+    sims = cosine_similarity(profile.reshape(1, -1), matrix).flatten()
+    scored = [
+        (article_ids[i], float(sims[i]))
+        for i in range(len(article_ids))
+        if article_ids[i] not in exclude_ids
+    ]
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return scored[:top_n] if top_n else scored
+
+
 # ---------------------------------------------------------------------
 # Stage B: Neural Collaborative Filtering (requires ml/train_ncf.py to
 # have been run at least once)

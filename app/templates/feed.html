@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Your Feed{% endblock %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <h1 class="mb-2">Your Personalized Feed</h1>
+
+    <p class="text-muted mb-4">
+        Recommendations based on your recent interactions.
+    </p>
+
+    {% if recommendations %}
+
+        <div class="row">
+
+            {% for item in recommendations %}
+
+                <div class="col-md-6 mb-4">
+
+                    <div class="card h-100 shadow-sm">
+
+                        <div class="card-body">
+
+                            <h5 class="card-title">
+                                {{ item.article.title }}
+                            </h5>
+
+                            {% if item.article.category %}
+                                <p class="text-muted mb-2">
+                                    Category: {{ item.article.category }}
+                                </p>
+                            {% endif %}
+
+                            {% if item.article.source %}
+                                <p class="text-muted mb-2">
+                                    Source: {{ item.article.source }}
+                                </p>
+                            {% endif %}
+
+                            <p class="card-text">
+                                {{ item.article.content[:250] }}
+                                {% if item.article.content and item.article.content|length > 250 %}
+                                    ...
+                                {% endif %}
+                            </p>
+
+                            <p class="small text-muted">
+                                Recommendation score:
+                                {{ "%.4f"|format(item.score) }}
+                            </p>
+
+                            <a
+                                href="{{ url_for(
+                                    'main.view_article',
+                                    article_id=item.article.id
+                                ) }}"
+                                class="btn btn-primary"
+                            >
+                                Read Article
+                            </a>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    {% else %}
+
+        <div class="alert alert-info">
+            We don't have enough information to personalize your feed yet.
+            Read, like, or save a few articles and check again.
+        </div>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}

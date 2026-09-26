@@ -57,3 +57,5 @@ urllib3==2.8.0
 Werkzeug==3.1.8
 wheel==0.48.0
 wrapt==2.4.1
+
+plotly==7.1.0
