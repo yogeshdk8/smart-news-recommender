@@ -59,3 +59,4 @@ wheel==0.48.0
 wrapt==2.4.1
 
 plotly==7.1.0
+gunicorn==26.2.0

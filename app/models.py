@@ -17,7 +17,10 @@ from app import db
 
 
 class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
 
     username = db.Column(
         db.String(80),
@@ -82,7 +85,8 @@ class Article(db.Model):
     )
 
     url = db.Column(
-        db.String(500)
+        db.String(500),
+        unique=True
     )
 
     published_at = db.Column(
