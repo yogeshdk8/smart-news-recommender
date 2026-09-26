@@ -267,9 +267,25 @@ def hybrid_recommend(user_id, top_n=10, alpha=0.5):
         return content_results[:top_n]
 
     combined = []
+
     for article_id, content_score in content_results:
-        ncf_score = ncf_scores.get(article_id, 0.0)
-        final_score = alpha * content_score + (1 - alpha) * ncf_score
+
+        # If the NCF model knows this article, combine
+        # content-based and NCF scores normally.
+        if article_id in ncf_scores:
+            ncf_score = ncf_scores[article_id]
+
+            final_score = (
+                alpha * content_score
+                + (1 - alpha) * ncf_score
+            )
+
+        # New articles were added after NCF training.
+        # They have no NCF score yet, so keep their
+        # content-based score instead of assigning NCF = 0.
+        else:
+            final_score = content_score
+
         combined.append((article_id, final_score))
 
     combined.sort(key=lambda x: x[1], reverse=True)
