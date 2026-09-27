@@ -1,0 +1,576 @@
+{% extends "base.html" %}
+
+{% block title %}Search News{% endblock %}
+
+{% block content %}
+
+<style>
+    .search-page {
+        max-width: 1150px;
+        margin: 0 auto;
+    }
+
+    .search-header {
+        margin-bottom: 24px;
+    }
+
+    .search-header h1 {
+        font-weight: 700;
+        margin-bottom: 8px;
+        color: #172033;
+    }
+
+    .search-header p {
+        color: #6c757d;
+        margin-bottom: 0;
+    }
+
+    /* Search box */
+
+    .search-box {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+    }
+
+    .search-form {
+        display: flex;
+        gap: 10px;
+    }
+
+    .search-form input {
+        flex: 1;
+        min-width: 0;
+        border: 1px solid #ced4da;
+        border-radius: 10px;
+        padding: 13px 15px;
+        font-size: 16px;
+        outline: none;
+    }
+
+    .search-form input:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10);
+    }
+
+    .search-form button {
+        border: none;
+        border-radius: 10px;
+        padding: 12px 24px;
+        font-weight: 600;
+        cursor: pointer;
+        background: #2563eb;
+        color: white;
+    }
+
+    .search-form button:hover {
+        background: #1d4ed8;
+    }
+
+    /* Error */
+
+    .error-message {
+        background: #f8d7da;
+        color: #842029;
+        border-radius: 10px;
+        padding: 14px 16px;
+        margin-bottom: 20px;
+    }
+
+    /* Results heading */
+
+    .results-heading {
+        margin-bottom: 20px;
+    }
+
+    .results-heading h2 {
+        font-weight: 700;
+        color: #172033;
+        margin-bottom: 6px;
+    }
+
+    .results-heading p {
+        color: #6c757d;
+        margin-bottom: 0;
+    }
+
+    /* News card */
+
+    .news-result {
+        display: flex;
+        gap: 22px;
+        background: #ffffff;
+        border-radius: 18px;
+        padding: 20px;
+        margin-bottom: 22px;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+        border: 1px solid #eef1f5;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .news-result:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+    }
+
+    /* Image */
+
+    .news-image {
+        width: 280px;
+        min-width: 280px;
+        height: 175px;
+        object-fit: cover;
+        border-radius: 13px;
+        background: #e9ecef;
+    }
+
+    .news-image-placeholder {
+        width: 280px;
+        min-width: 280px;
+        height: 175px;
+        border-radius: 13px;
+        background: linear-gradient(
+            135deg,
+            #e9ecef,
+            #f5f6f8
+        );
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #8a94a6;
+        font-size: 42px;
+    }
+
+    /* Content */
+
+    .news-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .news-title {
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 1.35;
+        margin-bottom: 9px;
+        color: #172033;
+    }
+
+    .news-title a {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .news-title a:hover {
+        color: #2563eb;
+    }
+
+    /* Metadata */
+
+    .news-meta {
+        color: #6c757d;
+        font-size: 14px;
+        margin-bottom: 11px;
+    }
+
+    .news-source {
+        font-weight: 600;
+        color: #495057;
+    }
+
+    /* Description */
+
+    .news-description {
+        color: #495057;
+        line-height: 1.6;
+        margin-bottom: 17px;
+    }
+
+    /* Action buttons */
+
+    .news-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 9px;
+        margin-top: 8px;
+    }
+
+    .action-form {
+        margin: 0;
+    }
+
+    .action-button {
+        border: none;
+        border-radius: 9px;
+        padding: 9px 14px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    /* Like */
+
+    .like-button {
+        background: #f1f5f9;
+        color: #334155;
+    }
+
+    .like-button:hover {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+
+    .like-button.active {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+
+    /* Save */
+
+    .save-button {
+        background: #f1f5f9;
+        color: #334155;
+    }
+
+    .save-button:hover {
+        background: #fef3c7;
+        color: #b45309;
+    }
+
+    .save-button.active {
+        background: #fef3c7;
+        color: #b45309;
+    }
+
+    /* Read button */
+
+    .read-button {
+        display: inline-block;
+        text-decoration: none;
+        border-radius: 9px;
+        padding: 9px 15px;
+        font-weight: 600;
+        background: #2563eb;
+        color: white;
+    }
+
+    .read-button:hover {
+        background: #1d4ed8;
+        color: white;
+        text-decoration: none;
+    }
+
+    /* Empty results */
+
+    .empty-results {
+        text-align: center;
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 55px 20px;
+        color: #6c757d;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.05);
+    }
+
+    .empty-results h3 {
+        color: #343a40;
+        margin-bottom: 10px;
+    }
+
+    /* Mobile */
+
+    @media (max-width: 768px) {
+
+        .search-form {
+            flex-direction: column;
+        }
+
+        .search-form button {
+            width: 100%;
+        }
+
+        .news-result {
+            flex-direction: column;
+        }
+
+        .news-image,
+        .news-image-placeholder {
+            width: 100%;
+            min-width: 0;
+            height: 220px;
+        }
+
+        .news-title {
+            font-size: 20px;
+        }
+
+        .news-actions {
+            align-items: stretch;
+        }
+
+        .action-form,
+        .action-button,
+        .read-button {
+            width: 100%;
+            text-align: center;
+        }
+    }
+</style>
+
+
+<div class="search-page">
+
+    <!-- Page heading -->
+
+    <div class="search-header">
+
+        <h1>🔎 Search News</h1>
+
+        <p>
+            Search the latest available news from GNews.
+        </p>
+
+    </div>
+
+
+    <!-- Search box -->
+
+    <div class="search-box">
+
+        <form
+            method="GET"
+            action="{{ url_for('main.search') }}"
+            class="search-form"
+        >
+
+            <input
+                type="text"
+                name="q"
+                value="{{ query }}"
+                placeholder="Search for news..."
+                autocomplete="off"
+                required
+            >
+
+            <button type="submit">
+                🔎 Search
+            </button>
+
+        </form>
+
+    </div>
+
+
+    <!-- Error message -->
+
+    {% if error %}
+
+        <div class="error-message">
+            {{ error }}
+        </div>
+
+    {% endif %}
+
+
+    <!-- Search results -->
+
+    {% if query and not error %}
+
+        <div class="results-heading">
+
+            <h2>
+                Search results for "{{ query }}"
+            </h2>
+
+            <p>
+                Showing {{ articles|length }}
+                result{% if articles|length != 1 %}s{% endif %}.
+            </p>
+
+        </div>
+
+
+        {% if articles %}
+
+            {% for article in articles %}
+
+                <article class="news-result">
+
+                    <!-- Article image -->
+
+                    {% if article.image_url %}
+
+                        <img
+                            src="{{ article.image_url }}"
+                            alt="{{ article.title }}"
+                            class="news-image"
+                            loading="lazy"
+                        >
+
+                    {% else %}
+
+                        <div class="news-image-placeholder">
+                            📰
+                        </div>
+
+                    {% endif %}
+
+
+                    <!-- Article content -->
+
+                    <div class="news-content">
+
+                        <!-- Article title -->
+
+                        <div class="news-title">
+
+                            <a
+                                href="{{ article.url }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                {{ article.title }}
+                            </a>
+
+                        </div>
+
+
+                        <!-- Source and date -->
+
+                        <div class="news-meta">
+
+                            {% if article.source %}
+
+                                <span class="news-source">
+                                    {{ article.source }}
+                                </span>
+
+                            {% endif %}
+
+                            {% if article.published_at %}
+
+                                · {{ article.published_at }}
+
+                            {% endif %}
+
+                        </div>
+
+
+                        <!-- Description -->
+
+                        {% if article.content %}
+
+                            <div class="news-description">
+
+                                {{ article.content[:450] }}
+
+                                {% if article.content|length > 450 %}
+                                    ...
+                                {% endif %}
+
+                            </div>
+
+                        {% endif %}
+
+
+                        <!-- Like / Save / Read buttons -->
+
+                        <div class="news-actions">
+
+                            <!-- LIKE -->
+
+                            <form
+                                method="POST"
+                                action="{{ url_for('main.like_article', article_id=article.id) }}"
+                                class="action-form"
+                            >
+
+                                <button
+                                    type="submit"
+                                    class="action-button like-button {% if article.id in liked_ids %}active{% endif %}"
+                                >
+
+                                    {% if article.id in liked_ids %}
+
+                                        ❤️ Liked
+
+                                    {% else %}
+
+                                        🤍 Like
+
+                                    {% endif %}
+
+                                </button>
+
+                            </form>
+
+
+                            <!-- SAVE -->
+
+                            <form
+                                method="POST"
+                                action="{{ url_for('main.save_article', article_id=article.id) }}"
+                                class="action-form"
+                            >
+
+                                <button
+                                    type="submit"
+                                    class="action-button save-button {% if article.id in saved_ids %}active{% endif %}"
+                                >
+
+                                    {% if article.id in saved_ids %}
+
+                                        🔖 Saved
+
+                                    {% else %}
+
+                                        🔖 Save
+
+                                    {% endif %}
+
+                                </button>
+
+                            </form>
+
+
+                            <!-- DIRECT ORIGINAL ARTICLE -->
+
+                            <a
+                                href="{{ article.url }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="read-button"
+                            >
+                                Read Full Article ↗
+                            </a>
+
+                        </div>
+
+                    </div>
+
+                </article>
+
+            {% endfor %}
+
+        {% else %}
+
+            <div class="empty-results">
+
+                <h3>📰 No articles found</h3>
+
+                <p>
+                    Try another search term.
+                </p>
+
+            </div>
+
+        {% endif %}
+
+    {% endif %}
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Saved Articles{% endblock %}
+
+{% block content %}
+
+<style>
+    .saved-page {
+        max-width: 950px;
+        margin: 0 auto;
+        padding: 30px 15px 60px;
+    }
+
+    .saved-header {
+        margin-bottom: 30px;
+    }
+
+    .saved-header h1 {
+        font-weight: 700;
+    }
+
+    .saved-header p {
+        color: #6c757d;
+    }
+
+    .saved-article {
+        background: white;
+        border-radius: 14px;
+        padding: 22px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.07);
+        border: 1px solid #eeeeee;
+    }
+
+    .saved-image {
+        width: 100%;
+        max-height: 420px;
+        object-fit: cover;
+        border-radius: 12px;
+        margin-bottom: 18px;
+    }
+
+    .saved-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+    }
+
+    .saved-meta {
+        color: #6c757d;
+        margin-bottom: 15px;
+    }
+
+    .saved-content {
+        line-height: 1.7;
+        margin-bottom: 18px;
+    }
+</style>
+
+
+<div class="saved-page">
+
+    <div class="saved-header">
+
+        <h1>🔖 My Saved Articles</h1>
+
+        <p>
+            Articles you saved to read later.
+        </p>
+
+    </div>
+
+
+    {% if articles %}
+
+        {% for article in articles %}
+
+            <article class="saved-article">
+
+                {% if article.image_url %}
+
+                    <img
+                        src="{{ article.image_url }}"
+                        alt="{{ article.title }}"
+                        class="saved-image"
+                        loading="lazy"
+                    >
+
+                {% endif %}
+
+
+                <h2 class="saved-title">
+                    {{ article.title }}
+                </h2>
+
+
+                <div class="saved-meta">
+
+                    {% if article.category %}
+                        {{ article.category }}
+                    {% endif %}
+
+                    {% if article.source %}
+                        • {{ article.source }}
+                    {% endif %}
+
+                    {% if article.published_at %}
+                        • {{ article.published_at }}
+                    {% endif %}
+
+                </div>
+
+
+                {% if article.content %}
+
+                    <div class="saved-content">
+                        {{ article.content }}
+                    </div>
+
+                {% endif %}
+
+
+                <a
+                    href="{{ url_for(
+                        'main.view_article',
+                        article_id=article.id
+                    ) }}"
+                    class="btn btn-primary"
+                >
+                    Read Article →
+                </a>
+
+
+                {% if article.url %}
+
+                    <a
+                        href="{{ article.url }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="btn btn-outline-secondary ms-2"
+                    >
+                        Original Source ↗
+                    </a>
+
+                {% endif %}
+
+            </article>
+
+        {% endfor %}
+
+    {% else %}
+
+        <div class="alert alert-info">
+
+            <h5>No saved articles yet.</h5>
+
+            <p class="mb-0">
+                Use the 🔖 Save button on an article to keep it here.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}

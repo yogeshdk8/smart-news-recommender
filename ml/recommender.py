@@ -1,316 +1,875 @@
 """
 ml/recommender.py
 
-Phase 6 — Recommendation Engine
+Strict per-user personalized recommendation engine.
 
-Stage A: content_based_recommend()  — profile vector + cosine similarity
-Stage B: ncf_recommend() + hybrid_recommend() — added after training the
-         neural model with ml/train_ncf.py
+IMPORTANT DESIGN RULE
+---------------------
 
-Cold start: if a user has too little history, fall back to popularity.
+Production recommendations must depend ONLY on the currently logged-in
+user's own interaction history.
+
+Allowed user signals:
+    - views
+    - likes
+    - saves
+
+NOT used for production recommendations:
+    - other users' interactions
+    - global popularity
+    - collaborative filtering
+    - NCF predictions trained across users
+    - shared user profiles
+
+The article catalogue itself is shared. The user's interest profile is
+built exclusively from that user's own interactions.
 """
 
-import os
 import json
+import os
+import sys
 
 import joblib
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+from sqlalchemy import func
 
 from app import create_app, db
-from app.models import Interaction, Article
+from app.models import Article, Interaction
 
-DATA_DIR = os.path.join("data", "processed")
-VECTORIZER_PATH = os.path.join(DATA_DIR, "db_tfidf_vectorizer.joblib")
-MATRIX_PATH = os.path.join(DATA_DIR, "db_tfidf_matrix.joblib")
-ARTICLE_ID_MAP_PATH = os.path.join(DATA_DIR, "article_id_map.json")
 
-# How much each interaction type counts toward a user's profile / as a
-# positive training signal. Saves/likes are a stronger signal than a view.
-INTERACTION_WEIGHTS = {"view": 1.0, "like": 2.0, "save": 3.0}
+# ---------------------------------------------------------------------
+# PATHS
+# ---------------------------------------------------------------------
 
-# Below this many interactions, we don't trust a personal profile yet.
+DATA_DIR = os.path.join(
+    "data",
+    "processed",
+)
+
+VECTORIZER_PATH = os.path.join(
+    DATA_DIR,
+    "db_tfidf_vectorizer.joblib",
+)
+
+MATRIX_PATH = os.path.join(
+    DATA_DIR,
+    "db_tfidf_matrix.joblib",
+)
+
+ARTICLE_ID_MAP_PATH = os.path.join(
+    DATA_DIR,
+    "article_id_map.json",
+)
+
+
+# ---------------------------------------------------------------------
+# USER INTERACTION WEIGHTS
+# ---------------------------------------------------------------------
+#
+# Stronger actions receive larger weights.
+#
+# View  -> weak interest signal
+# Like  -> stronger interest signal
+# Save  -> strongest interest signal
+#
+# These weights are applied ONLY to the current user's interactions.
+# ---------------------------------------------------------------------
+
+INTERACTION_WEIGHTS = {
+    "view": 1.0,
+    "like": 2.0,
+    "save": 3.0,
+}
+
+
+# ---------------------------------------------------------------------
+# COMPATIBILITY CONSTANT
+# ---------------------------------------------------------------------
+#
+# Older recommender tests import this constant.
+#
+# IMPORTANT:
+# personalized_recommend() DOES NOT use this value to fall back to
+# popularity.
+#
+# Strict per-user personalization must remain strict.
+# ---------------------------------------------------------------------
+
 COLD_START_THRESHOLD = 3
 
 
 # ---------------------------------------------------------------------
-# Load Stage A artifacts once
+# LOAD CONTENT ARTIFACTS
 # ---------------------------------------------------------------------
 
 def load_content_artifacts():
-    vectorizer = joblib.load(VECTORIZER_PATH)
-    matrix = joblib.load(MATRIX_PATH)
-    with open(ARTICLE_ID_MAP_PATH, "r", encoding="utf-8") as f:
-        article_ids = json.load(f)  # row i -> article_ids[i]
+    """
+    Load the TF-IDF vectorizer, article matrix, and article ID mapping.
 
-    id_to_row = {article_id: i for i, article_id in enumerate(article_ids)}
-    return vectorizer, matrix, article_ids, id_to_row
+    These artifacts describe article content.
+
+    They do NOT contain another user's personal recommendation profile.
+
+    Returns
+    -------
+    tuple
+        (
+            vectorizer,
+            matrix,
+            article_ids,
+            id_to_row
+        )
+    """
+
+    if not os.path.exists(VECTORIZER_PATH):
+        raise FileNotFoundError(
+            f"TF-IDF vectorizer not found: {VECTORIZER_PATH}"
+        )
+
+    if not os.path.exists(MATRIX_PATH):
+        raise FileNotFoundError(
+            f"TF-IDF matrix not found: {MATRIX_PATH}"
+        )
+
+    if not os.path.exists(ARTICLE_ID_MAP_PATH):
+        raise FileNotFoundError(
+            f"Article ID map not found: {ARTICLE_ID_MAP_PATH}"
+        )
+
+    vectorizer = joblib.load(
+        VECTORIZER_PATH
+    )
+
+    matrix = joblib.load(
+        MATRIX_PATH
+    )
+
+    with open(
+        ARTICLE_ID_MAP_PATH,
+        "r",
+        encoding="utf-8",
+    ) as f:
+        article_ids = json.load(f)
+
+    id_to_row = {
+        article_id: index
+        for index, article_id in enumerate(article_ids)
+    }
+
+    return (
+        vectorizer,
+        matrix,
+        article_ids,
+        id_to_row,
+    )
 
 
 # ---------------------------------------------------------------------
-# Popularity fallback (cold start)
+# POPULARITY RANKING
+# ---------------------------------------------------------------------
+#
+# COMPATIBILITY / TEST HELPER ONLY
+#
+# IMPORTANT:
+# This function is NOT used by personalized_recommend().
+#
+# It exists because older tests and older parts of the project expect
+# popularity_ranking() to exist.
+#
+# Production /feed recommendations remain strictly personalized.
 # ---------------------------------------------------------------------
 
-def popularity_ranking(exclude_ids=None, top_n=10):
+def popularity_ranking(
+    exclude_ids=None,
+    top_n=10,
+):
     """
-    Rank articles by total interaction count across ALL users.
-    Used when a user has no/too little history, or as a final tie-breaker.
-    """
-    exclude_ids = exclude_ids or set()
+    Return articles ordered by total interaction count.
 
-    counts = (
-        db.session.query(Interaction.article_id, db.func.count(Interaction.id))
-        .group_by(Interaction.article_id)
+    This function is retained for backward compatibility with the
+    existing test suite.
+
+    IMPORTANT:
+        This function must NOT be used by personalized_recommend().
+
+    Parameters
+    ----------
+    exclude_ids : iterable, optional
+        Article IDs that should not appear in the result.
+
+    top_n : int, default=10
+        Maximum number of articles to return.
+
+    Returns
+    -------
+    list
+        A list of tuples:
+
+            [
+                (article_id, score),
+                ...
+            ]
+
+        where score is the total number of interactions.
+
+    NOTE
+    ----
+    This function can query interactions from all users because it is
+    only a compatibility/test helper.
+
+    Production personalization NEVER calls this function.
+    """
+
+    exclude_ids = set(
+        exclude_ids or []
+    )
+
+    if top_n <= 0:
+        return []
+
+    rows = (
+        db.session.query(
+            Interaction.article_id,
+            func.count(
+                Interaction.id
+            ).label(
+                "interaction_count"
+            ),
+        )
+        .group_by(
+            Interaction.article_id
+        )
+        .order_by(
+            func.count(
+                Interaction.id
+            ).desc()
+        )
         .all()
     )
-    count_map = {article_id: count for article_id, count in counts}
 
-    all_articles = Article.query.all()
-    scored = []
-    for a in all_articles:
-        if a.id in exclude_ids:
+    recommendations = []
+
+    for article_id, interaction_count in rows:
+
+        if article_id in exclude_ids:
             continue
-        # Articles with zero interactions still get a score of 0, so brand
-        # new articles aren't hidden forever — they just rank at the bottom.
-        scored.append((a.id, float(count_map.get(a.id, 0))))
 
-    scored.sort(key=lambda x: x[1], reverse=True)
-    return scored[:top_n]
+        recommendations.append(
+            (
+                article_id,
+                float(
+                    interaction_count
+                ),
+            )
+        )
+
+        if len(recommendations) >= top_n:
+            break
+
+    return recommendations
 
 
 # ---------------------------------------------------------------------
-# Stage A: Content-based filtering
+# GET ONLY ONE USER'S INTERACTIONS
 # ---------------------------------------------------------------------
 
 def get_user_interactions(user_id):
-    """Returns list of (article_id, interaction_type) for a user."""
-    rows = Interaction.query.filter_by(user_id=user_id).all()
-    return [(r.article_id, r.type) for r in rows]
+    """
+    Return ONLY the interaction history belonging to user_id.
+
+    Returns
+    -------
+    list
+        [
+            (article_id, interaction_type),
+            ...
+        ]
+
+    IMPORTANT
+    ---------
+    No other user's interactions are queried here.
+    """
+
+    rows = (
+        Interaction.query
+        .filter_by(
+            user_id=user_id
+        )
+        .order_by(
+            Interaction.timestamp.asc(),
+            Interaction.id.asc(),
+        )
+        .all()
+    )
+
+    return [
+        (
+            row.article_id,
+            row.type,
+        )
+        for row in rows
+    ]
 
 
-def build_user_profile_vector(user_id, matrix, id_to_row):
+# ---------------------------------------------------------------------
+# BUILD PERSONAL USER PROFILE
+# ---------------------------------------------------------------------
+
+def build_user_profile_vector(
+    user_id,
+    matrix,
+    id_to_row,
+):
     """
-    Weighted average of TF-IDF rows for articles the user interacted with.
-    Returns None if the user has no usable history.
+    Build a personalized TF-IDF interest profile.
+
+    CRITICAL:
+        The profile is created ONLY from interactions belonging to
+        user_id.
+
+        Other users are never queried here.
+
+    Returns
+    -------
+    tuple
+        (
+            profile_vector,
+            interacted_article_ids
+        )
+
+    If the user has no usable interactions:
+
+        (
+            None,
+            set()
+        )
     """
-    interactions = get_user_interactions(user_id)
+
+    interactions = get_user_interactions(
+        user_id
+    )
+
     if not interactions:
-        return None, set()
+        return (
+            None,
+            set(),
+        )
 
     rows = []
     weights = []
+
     interacted_ids = set()
 
-    for article_id, itype in interactions:
-        interacted_ids.add(article_id)
-        row_idx = id_to_row.get(article_id)
-        if row_idx is None:
-            continue  # article not in the feature matrix (e.g. deleted)
-        rows.append(matrix[row_idx].toarray()[0])
-        weights.append(INTERACTION_WEIGHTS.get(itype, 1.0))
+    for article_id, interaction_type in interactions:
+
+        interacted_ids.add(
+            article_id
+        )
+
+        row_index = id_to_row.get(
+            article_id
+        )
+
+        # The interaction may refer to an article that is not present
+        # in the current TF-IDF artifact.
+        if row_index is None:
+            continue
+
+        article_vector = (
+            matrix[row_index]
+            .toarray()[0]
+        )
+
+        weight = INTERACTION_WEIGHTS.get(
+            interaction_type,
+            1.0,
+        )
+
+        rows.append(
+            article_vector
+        )
+
+        weights.append(
+            weight
+        )
 
     if not rows:
-        return None, interacted_ids
+        return (
+            None,
+            interacted_ids,
+        )
 
-    rows = np.array(rows)
-    weights = np.array(weights).reshape(-1, 1)
-    profile = (rows * weights).sum(axis=0) / weights.sum()
-    return profile, interacted_ids
+    rows = np.asarray(
+        rows,
+        dtype=float,
+    )
+
+    weights = np.asarray(
+        weights,
+        dtype=float,
+    ).reshape(
+        -1,
+        1,
+    )
+
+    total_weight = weights.sum()
+
+    if total_weight <= 0:
+        return (
+            None,
+            interacted_ids,
+        )
+
+    # Weighted average of ONLY this user's
+    # interacted article vectors.
+    profile = (
+        rows * weights
+    ).sum(
+        axis=0
+    ) / total_weight
+
+    return (
+        profile,
+        interacted_ids,
+    )
 
 
-def content_based_recommend(user_id, top_n=10):
+# ---------------------------------------------------------------------
+# STRICT PERSONALIZED RECOMMENDATIONS
+# ---------------------------------------------------------------------
+
+def personalized_recommend(
+    user_id,
+    top_n=20,
+):
     """
-    Returns [(article_id, score), ...] ranked by cosine similarity to the
-    user's profile vector. Falls back to popularity if the user is cold.
+    Generate recommendations ONLY from this user's own interactions.
+
+    This function intentionally does NOT use:
+
+        - popularity_ranking()
+        - NCF
+        - collaborative filtering
+        - other users' interactions
+        - global popularity
+        - another user's profile
+
+    Recommendation process:
+
+        1. Read only user_id's interactions.
+        2. Build a TF-IDF interest profile from those interactions.
+        3. Compare the profile against article content.
+        4. Exclude articles already interacted with by this user.
+        5. Return the highest-content-similarity articles.
+
+    For users with no interaction history, there is no personal profile.
+
+    In that case the function returns an empty list rather than using
+    another user's data or global popularity.
+
+    Returns
+    -------
+    list
+        [
+            (article_id, similarity_score),
+            ...
+        ]
     """
-    vectorizer, matrix, article_ids, id_to_row = load_content_artifacts()
 
-    interactions = get_user_interactions(user_id)
-    if len(interactions) < COLD_START_THRESHOLD:
-        interacted_ids = {a_id for a_id, _ in interactions}
-        return popularity_ranking(exclude_ids=interacted_ids, top_n=top_n)
+    if top_n <= 0:
+        return []
 
-    profile, interacted_ids = build_user_profile_vector(user_id, matrix, id_to_row)
+    (
+        _vectorizer,
+        matrix,
+        article_ids,
+        id_to_row,
+    ) = load_content_artifacts()
+
+    # -------------------------------------------------------------
+    # STEP 1
+    # Get ONLY this user's interaction history.
+    # -------------------------------------------------------------
+
+    interactions = get_user_interactions(
+        user_id
+    )
+
+    if not interactions:
+        return []
+
+    # -------------------------------------------------------------
+    # STEP 2
+    # Build ONLY this user's profile.
+    # -------------------------------------------------------------
+
+    (
+        profile,
+        interacted_ids,
+    ) = build_user_profile_vector(
+        user_id,
+        matrix,
+        id_to_row,
+    )
+
     if profile is None:
-        return popularity_ranking(exclude_ids=interacted_ids, top_n=top_n)
+        return []
 
-    profile = profile.reshape(1, -1)
-    sims = cosine_similarity(profile, matrix).flatten()  # shape (n_articles,)
+    # -------------------------------------------------------------
+    # STEP 3
+    # Compare this user's profile against article content.
+    # -------------------------------------------------------------
 
-    scored = [
-        (article_ids[i], float(sims[i]))
-        for i in range(len(article_ids))
-        if article_ids[i] not in interacted_ids
-    ]
-    scored.sort(key=lambda x: x[1], reverse=True)
+    profile = profile.reshape(
+        1,
+        -1,
+    )
+
+    similarities = cosine_similarity(
+        profile,
+        matrix,
+    ).flatten()
+
+    # -------------------------------------------------------------
+    # STEP 4
+    # Score candidate articles.
+    #
+    # IMPORTANT:
+    # Articles already interacted with by THIS USER are excluded.
+    # -------------------------------------------------------------
+
+    scored = []
+
+    for index, article_id in enumerate(
+        article_ids
+    ):
+
+        if article_id in interacted_ids:
+            continue
+
+        score = float(
+            similarities[index]
+        )
+
+        scored.append(
+            (
+                article_id,
+                score,
+            )
+        )
+
+    # -------------------------------------------------------------
+    # STEP 5
+    # Highest similarity first.
+    # -------------------------------------------------------------
+
+    scored.sort(
+        key=lambda item: item[1],
+        reverse=True,
+    )
+
     return scored[:top_n]
 
 
-def recommend_from_interactions(interactions, exclude_ids=None, top_n=10):
-    """
-    Lower-level version of content_based_recommend: builds a profile from
-    an explicit list of (article_id, type) pairs instead of querying the
-    live database. Used by ml/evaluate.py to test the model on held-out
-    data (Phase 7's precision@K), and reusable anywhere you want to
-    simulate "what would this user's recommendations look like."
-    """
-    vectorizer, matrix, article_ids, id_to_row = load_content_artifacts()
-    exclude_ids = exclude_ids or set()
+# ---------------------------------------------------------------------
+# RECOMMENDATIONS FROM EXPLICIT INTERACTIONS
+# ---------------------------------------------------------------------
+#
+# Used by the offline evaluator.
+#
+# This function also uses ONLY the supplied interaction list.
+# ---------------------------------------------------------------------
 
-    rows, weights = [], []
-    for article_id, itype in interactions:
-        row_idx = id_to_row.get(article_id)
-        if row_idx is None:
+def recommend_from_interactions(
+    interactions,
+    exclude_ids=None,
+    top_n=10,
+):
+    """
+    Build a recommendation profile from an explicit list of
+    interactions.
+
+    Example
+    -------
+
+        interactions = [
+            (12, "view"),
+            (25, "like"),
+            (31, "save"),
+        ]
+
+    This function never queries other users.
+
+    Parameters
+    ----------
+    interactions : iterable
+        Iterable containing:
+
+            (article_id, interaction_type)
+
+    exclude_ids : iterable, optional
+        Article IDs to exclude from recommendations.
+
+    top_n : int, default=10
+        Maximum number of recommendations.
+
+    Returns
+    -------
+    list
+        [
+            (article_id, similarity_score),
+            ...
+        ]
+    """
+
+    if top_n <= 0:
+        return []
+
+    (
+        _vectorizer,
+        matrix,
+        article_ids,
+        id_to_row,
+    ) = load_content_artifacts()
+
+    exclude_ids = set(
+        exclude_ids or []
+    )
+
+    rows = []
+    weights = []
+
+    for article_id, interaction_type in interactions:
+
+        row_index = id_to_row.get(
+            article_id
+        )
+
+        if row_index is None:
             continue
-        rows.append(matrix[row_idx].toarray()[0])
-        weights.append(INTERACTION_WEIGHTS.get(itype, 1.0))
+
+        rows.append(
+            matrix[row_index]
+            .toarray()[0]
+        )
+
+        weights.append(
+            INTERACTION_WEIGHTS.get(
+                interaction_type,
+                1.0,
+            )
+        )
 
     if not rows:
         return []
 
-    rows = np.array(rows)
-    weights = np.array(weights).reshape(-1, 1)
-    profile = (rows * weights).sum(axis=0) / weights.sum()
+    rows = np.asarray(
+        rows,
+        dtype=float,
+    )
 
-    sims = cosine_similarity(profile.reshape(1, -1), matrix).flatten()
-    scored = [
-        (article_ids[i], float(sims[i]))
-        for i in range(len(article_ids))
-        if article_ids[i] not in exclude_ids
-    ]
-    scored.sort(key=lambda x: x[1], reverse=True)
-    return scored[:top_n] if top_n else scored
+    weights = np.asarray(
+        weights,
+        dtype=float,
+    ).reshape(
+        -1,
+        1,
+    )
+
+    total_weight = weights.sum()
+
+    if total_weight <= 0:
+        return []
+
+    profile = (
+        rows * weights
+    ).sum(
+        axis=0
+    ) / total_weight
+
+    similarities = cosine_similarity(
+        profile.reshape(
+            1,
+            -1,
+        ),
+        matrix,
+    ).flatten()
+
+    scored = []
+
+    for index, article_id in enumerate(
+        article_ids
+    ):
+
+        if article_id in exclude_ids:
+            continue
+
+        scored.append(
+            (
+                article_id,
+                float(
+                    similarities[index]
+                ),
+            )
+        )
+
+    scored.sort(
+        key=lambda item: item[1],
+        reverse=True,
+    )
+
+    return scored[:top_n]
 
 
 # ---------------------------------------------------------------------
-# Stage B: Neural Collaborative Filtering (requires ml/train_ncf.py to
-# have been run at least once)
+# COMPATIBILITY FUNCTION
+# ---------------------------------------------------------------------
+#
+# The Flask application previously called hybrid_recommend().
+#
+# We keep the function name so existing imports/routes do not break.
+#
+# IMPORTANT:
+# This is NO LONGER a hybrid recommender.
+#
+# It simply calls personalized_recommend().
+#
+# Therefore production recommendations are still strictly per-user.
 # ---------------------------------------------------------------------
 
-NCF_MODEL_PATH = os.path.join(DATA_DIR, "ncf_model.keras")
-NCF_USER_ID_MAP_PATH = os.path.join(DATA_DIR, "ncf_user_id_map.json")
-NCF_ARTICLE_ID_MAP_PATH = os.path.join(DATA_DIR, "ncf_article_id_map.json")
+def hybrid_recommend(
+    user_id,
+    top_n=20,
+    alpha=1.0,
+):
+    """
+    Compatibility wrapper.
 
-_ncf_model_cache = None  # loaded lazily so Stage A works without TensorFlow installed
+    Despite the old name, this function performs STRICT
+    per-user content-based recommendation.
 
+    Parameters
+    ----------
+    user_id : int
+        Currently logged-in user's ID.
 
-def ncf_available():
-    return (
-        os.path.exists(NCF_MODEL_PATH)
-        and os.path.exists(NCF_USER_ID_MAP_PATH)
-        and os.path.exists(NCF_ARTICLE_ID_MAP_PATH)
+    top_n : int
+        Number of recommendations requested.
+
+    alpha : float
+        Retained only for compatibility with older calling code.
+
+        It has NO effect on the recommendations.
+
+    Returns
+    -------
+    list
+        Same result as personalized_recommend().
+    """
+
+    return personalized_recommend(
+        user_id=user_id,
+        top_n=top_n,
     )
 
 
-def load_ncf_artifacts():
-    global _ncf_model_cache
-    import tensorflow as tf  # imported here so Stage A never requires TensorFlow
-
-    if _ncf_model_cache is None:
-        _ncf_model_cache = tf.keras.models.load_model(NCF_MODEL_PATH)
-
-    with open(NCF_USER_ID_MAP_PATH, "r", encoding="utf-8") as f:
-        user_id_map = {int(k): v for k, v in json.load(f).items()}
-    with open(NCF_ARTICLE_ID_MAP_PATH, "r", encoding="utf-8") as f:
-        article_id_map = {int(k): v for k, v in json.load(f).items()}
-
-    return _ncf_model_cache, user_id_map, article_id_map
-
-
-def ncf_scores_for_user(user_id, candidate_article_ids):
-    """
-    Returns {article_id: predicted_score} for the given candidates,
-    using the trained NCF model. Returns {} if the user or model is
-    unknown (e.g. brand-new user never seen during training).
-    """
-    model, user_id_map, article_id_map = load_ncf_artifacts()
-
-    if user_id not in user_id_map:
-        return {}
-
-    known_candidates = [a for a in candidate_article_ids if a in article_id_map]
-    if not known_candidates:
-        return {}
-
-    user_idx = user_id_map[user_id]
-    users_arr = np.array([user_idx] * len(known_candidates))
-    items_arr = np.array([article_id_map[a] for a in known_candidates])
-
-    preds = model.predict([users_arr, items_arr], verbose=0).flatten()
-    return {aid: float(score) for aid, score in zip(known_candidates, preds)}
-
-
 # ---------------------------------------------------------------------
-# Hybrid: combine content-based + NCF scores
-# ---------------------------------------------------------------------
-
-def hybrid_recommend(user_id, top_n=10, alpha=0.5):
-    """
-    Combines Stage A (content) and Stage B (NCF) scores:
-        final_score = alpha * content_score + (1 - alpha) * ncf_score
-
-    alpha=1.0 -> pure content-based, alpha=0.0 -> pure NCF.
-    Falls back to content-based-only (which itself falls back to
-    popularity for cold-start users) if the NCF model isn't trained yet
-    or has never seen this user.
-    """
-    content_results = content_based_recommend(user_id, top_n=top_n * 3)  # wider pool to re-rank
-
-    if not ncf_available():
-        return content_results[:top_n]
-
-    candidate_ids = [aid for aid, _ in content_results]
-    ncf_scores = ncf_scores_for_user(user_id, candidate_ids)
-
-    if not ncf_scores:
-        # Unknown to the NCF model (e.g. brand-new user) -> content-only
-        return content_results[:top_n]
-
-    combined = []
-
-    for article_id, content_score in content_results:
-
-        # If the NCF model knows this article, combine
-        # content-based and NCF scores normally.
-        if article_id in ncf_scores:
-            ncf_score = ncf_scores[article_id]
-
-            final_score = (
-                alpha * content_score
-                + (1 - alpha) * ncf_score
-            )
-
-        # New articles were added after NCF training.
-        # They have no NCF score yet, so keep their
-        # content-based score instead of assigning NCF = 0.
-        else:
-            final_score = content_score
-
-        combined.append((article_id, final_score))
-
-    combined.sort(key=lambda x: x[1], reverse=True)
-    return combined[:top_n]
-
-
-# ---------------------------------------------------------------------
-# Manual smoke test
+# MANUAL TEST
 # ---------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import sys
 
     app = create_app()
+
     with app.app_context():
-        user_id = int(sys.argv[1]) if len(sys.argv) > 1 else 1
 
-        print(f"--- Content-based only (Stage A) ---")
-        for article_id, score in content_based_recommend(user_id, top_n=10):
-            article = Article.query.get(article_id)
-            title = article.title if article else "(unknown)"
-            print(f"  [{score:.4f}] {title}")
+        if len(sys.argv) > 1:
+            try:
+                user_id = int(
+                    sys.argv[1]
+                )
+            except ValueError:
+                print(
+                    "ERROR: user_id must be an integer."
+                )
+                sys.exit(1)
+        else:
+            user_id = 1
 
-        print(f"\n--- Hybrid (Stage A + B) ---")
-        for article_id, score in hybrid_recommend(user_id, top_n=10):
-            article = Article.query.get(article_id)
-            title = article.title if article else "(unknown)"
-            print(f"  [{score:.4f}] {title}")
+        print()
+        print("=" * 70)
+        print(
+            "STRICT PER-USER RECOMMENDATION TEST"
+        )
+        print("=" * 70)
+
+        print(
+            f"User ID: {user_id}"
+        )
+
+        interactions = (
+            get_user_interactions(
+                user_id
+            )
+        )
+
+        print(
+            f"User interactions: "
+            f"{len(interactions)}"
+        )
+
+        if interactions:
+            print()
+            print(
+                "User interaction history:"
+            )
+
+            for article_id, interaction_type in interactions:
+                print(
+                    f"  Article {article_id}: "
+                    f"{interaction_type}"
+                )
+
+        print()
+        print(
+            "Recommendations:"
+        )
+
+        recommendations = (
+            personalized_recommend(
+                user_id=user_id,
+                top_n=10,
+            )
+        )
+
+        if not recommendations:
+            print(
+                "  No personalized recommendations available."
+            )
+            print(
+                "  The user needs at least one usable interaction."
+            )
+
+        else:
+            for article_id, score in recommendations:
+
+                # SQLAlchemy 2.x API.
+                # This avoids the deprecated Article.query.get().
+                article = db.session.get(
+                    Article,
+                    article_id,
+                )
+
+                title = (
+                    article.title
+                    if article
+                    else "(unknown)"
+                )
+
+                print(
+                    f"[{score:.4f}] "
+                    f"{title}"
+                )
+
+        print("=" * 70)

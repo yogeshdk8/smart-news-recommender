@@ -1,79 +1,541 @@
 {% extends "base.html" %}
 
-{% block title %}Articles{% endblock %}
+{% block title %}Latest News{% endblock %}
+
+
+{% block extra_head %}
+
+<style>
+
+    .news-header {
+
+        margin-bottom: 30px;
+    }
+
+
+    .news-header h1 {
+
+        font-size: 38px;
+
+        font-weight: 800;
+
+        color: #111827;
+
+        margin-bottom: 8px;
+    }
+
+
+    .news-header p {
+
+        color: #6b7280;
+
+        font-size: 16px;
+    }
+
+
+    .news-card {
+
+        background: white;
+
+        border-radius: 18px;
+
+        overflow: hidden;
+
+        border: 1px solid #e5e7eb;
+
+        box-shadow:
+            0 8px 25px
+            rgba(15, 23, 42, 0.07);
+
+        transition:
+            transform 0.2s,
+            box-shadow 0.2s;
+
+        margin-bottom: 28px;
+    }
+
+
+    .news-card:hover {
+
+        transform:
+            translateY(-3px);
+
+        box-shadow:
+            0 15px 35px
+            rgba(15, 23, 42, 0.12);
+    }
+
+
+    .news-image {
+
+        width: 100%;
+
+        height: 280px;
+
+        object-fit: cover;
+
+        display: block;
+    }
+
+
+    .news-image-placeholder {
+
+        width: 100%;
+
+        height: 280px;
+
+        background:
+            linear-gradient(
+                135deg,
+                #dbeafe,
+                #e0e7ff
+            );
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: center;
+
+        font-size: 55px;
+    }
+
+
+    .news-body {
+
+        padding: 24px;
+    }
+
+
+    .news-meta {
+
+        display: flex;
+
+        flex-wrap: wrap;
+
+        gap: 8px;
+
+        margin-bottom: 12px;
+    }
+
+
+    .news-category {
+
+        background: #eff6ff;
+
+        color: #1d4ed8;
+
+        padding: 5px 10px;
+
+        border-radius: 20px;
+
+        font-size: 12px;
+
+        font-weight: 700;
+
+        text-transform: uppercase;
+    }
+
+
+    .news-source {
+
+        color: #6b7280;
+
+        font-size: 13px;
+
+        padding: 5px 0;
+    }
+
+
+    .news-title {
+
+        font-size: 24px;
+
+        line-height: 1.3;
+
+        font-weight: 800;
+
+        margin-bottom: 12px;
+
+        color: #111827;
+    }
+
+
+    .news-content {
+
+        color: #4b5563;
+
+        line-height: 1.7;
+
+        font-size: 15px;
+
+        margin-bottom: 20px;
+    }
+
+
+    .news-media {
+
+        margin-bottom: 20px;
+    }
+
+
+    .news-video {
+
+        width: 100%;
+
+        max-height: 450px;
+
+        border-radius: 12px;
+
+        background: black;
+    }
+
+
+    .news-audio {
+
+        width: 100%;
+    }
+
+
+    .news-actions {
+
+        display: flex;
+
+        flex-wrap: wrap;
+
+        gap: 10px;
+
+        padding-top: 18px;
+
+        border-top: 1px solid #e5e7eb;
+    }
+
+
+    .news-action {
+
+        border: none;
+
+        border-radius: 10px;
+
+        padding: 10px 18px;
+
+        font-weight: 700;
+
+        cursor: pointer;
+
+        transition: 0.2s;
+    }
+
+
+    .like-button {
+
+        background: #fee2e2;
+
+        color: #b91c1c;
+    }
+
+
+    .like-button:hover {
+
+        background: #fecaca;
+    }
+
+
+    .save-button {
+
+        background: #fef3c7;
+
+        color: #92400e;
+    }
+
+
+    .save-button:hover {
+
+        background: #fde68a;
+    }
+
+
+    .read-button {
+
+        background: #2563eb;
+
+        color: white;
+
+        text-decoration: none;
+
+        display: inline-flex;
+
+        align-items: center;
+    }
+
+
+    .read-button:hover {
+
+        background: #1d4ed8;
+
+        color: white;
+    }
+
+
+    .news-date {
+
+        font-size: 13px;
+
+        color: #9ca3af;
+
+        margin-top: 10px;
+    }
+
+
+    @media (max-width: 600px) {
+
+        .news-header h1 {
+
+            font-size: 30px;
+        }
+
+        .news-image,
+        .news-image-placeholder {
+
+            height: 210px;
+        }
+
+        .news-body {
+
+            padding: 18px;
+        }
+
+        .news-title {
+
+            font-size: 21px;
+        }
+
+    }
+
+</style>
+
+{% endblock %}
+
 
 {% block content %}
 
-<div class="container mt-4">
+<div class="news-header">
 
-    <h1 class="mb-4">Latest Articles</h1>
+    <h1>📰 Latest News</h1>
 
-    {% if articles %}
+    <p>
+        Stay updated with the latest stories from around the world.
+    </p>
 
-        <div class="row">
+</div>
 
-            {% for article in articles %}
 
-                <div class="col-md-6 mb-4">
+{% if articles %}
 
-                    <div class="card h-100 shadow-sm">
+    <div class="row">
 
-                        <div class="card-body">
+        {% for article in articles %}
 
-                            <h5 class="card-title">
-                                {{ article.title }}
-                            </h5>
+            <div class="col-lg-8 mx-auto">
+
+                <article class="news-card">
+
+                    <!-- IMAGE -->
+
+                    {% if article.image_url %}
+
+                        <img
+                            src="{{ article.image_url }}"
+                            alt="{{ article.title }}"
+                            class="news-image"
+                            loading="lazy"
+                        >
+
+                    {% else %}
+
+                        <div class="news-image-placeholder">
+                            📰
+                        </div>
+
+                    {% endif %}
+
+
+                    <div class="news-body">
+
+                        <!-- META -->
+
+                        <div class="news-meta">
 
                             {% if article.category %}
-                                <p class="text-muted mb-2">
-                                    Category: {{ article.category }}
-                                </p>
+
+                                <span class="news-category">
+                                    {{ article.category }}
+                                </span>
+
                             {% endif %}
+
 
                             {% if article.source %}
-                                <p class="text-muted mb-2">
-                                    Source: {{ article.source }}
-                                </p>
+
+                                <span class="news-source">
+                                    {{ article.source }}
+                                </span>
+
                             {% endif %}
 
-                            {% if article.content %}
-                                <p class="card-text">
-                                    {{ article.content[:250] }}
+                        </div>
 
-                                    {% if article.content|length > 250 %}
-                                        ...
-                                    {% endif %}
-                                </p>
-                            {% endif %}
+
+                        <!-- TITLE -->
+
+                        <h2 class="news-title">
+                            {{ article.title }}
+                        </h2>
+
+
+                        <!-- CONTENT -->
+
+                        {% if article.content %}
+
+                            <div class="news-content">
+
+                                {{ article.content }}
+
+                            </div>
+
+                        {% endif %}
+
+
+                        <!-- VIDEO -->
+
+                        {% if article.video_url %}
+
+                            <div class="news-media">
+
+                                <video
+                                    class="news-video"
+                                    controls
+                                    preload="metadata"
+                                >
+
+                                    <source
+                                        src="{{ article.video_url }}"
+                                    >
+
+                                    Your browser does not support
+                                    video playback.
+
+                                </video>
+
+                            </div>
+
+                        {% endif %}
+
+
+                        <!-- AUDIO -->
+
+                        {% if article.audio_url %}
+
+                            <div class="news-media">
+
+                                <audio
+                                    class="news-audio"
+                                    controls
+                                >
+
+                                    <source
+                                        src="{{ article.audio_url }}"
+                                    >
+
+                                    Your browser does not support
+                                    audio playback.
+
+                                </audio>
+
+                            </div>
+
+                        {% endif %}
+
+
+                        <!-- ACTIONS -->
+
+                        <div class="news-actions">
+
+                            <form
+                                method="POST"
+                                action="{{ url_for(
+                                    'main.like_article',
+                                    article_id=article.id
+                                ) }}"
+                            >
+
+                                <button
+                                    type="submit"
+                                    class="news-action like-button"
+                                >
+                                    ❤️ Like
+                                </button>
+
+                            </form>
+
+
+                            <form
+                                method="POST"
+                                action="{{ url_for(
+                                    'main.save_article',
+                                    article_id=article.id
+                                ) }}"
+                            >
+
+                                <button
+                                    type="submit"
+                                    class="news-action save-button"
+                                >
+                                    🔖 Save
+                                </button>
+
+                            </form>
+
 
                             <a
                                 href="{{ url_for(
                                     'main.view_article',
                                     article_id=article.id
                                 ) }}"
-                                class="btn btn-primary"
+                                class="news-action read-button"
                             >
-                                Read Article
+                                📖 Open Article
                             </a>
 
                         </div>
 
+
+                        {% if article.published_at %}
+
+                            <div class="news-date">
+                                Published: {{ article.published_at }}
+                            </div>
+
+                        {% endif %}
+
                     </div>
 
-                </div>
+                </article>
 
-            {% endfor %}
+            </div>
 
-        </div>
+        {% endfor %}
 
-    {% else %}
+    </div>
 
-        <div class="alert alert-info">
-            No articles are available.
-        </div>
+{% else %}
 
-    {% endif %}
+    <div class="alert alert-info">
 
-</div>
+        No articles are available right now.
+
+    </div>
+
+{% endif %}
 
 {% endblock %}

@@ -4,79 +4,779 @@
 
 {% block content %}
 
-<div class="container mt-4">
+<style>
 
-    <h1 class="mb-2">Your Personalized Feed</h1>
+/* =====================================================
+   PAGE
+   ===================================================== */
 
-    <p class="text-muted mb-4">
-        Recommendations based on your recent interactions.
-    </p>
+.feed-page {
+    max-width: 1150px;
+    margin: 0 auto;
+}
+
+
+/* =====================================================
+   HEADER
+   ===================================================== */
+
+.feed-header {
+    margin-bottom: 30px;
+}
+
+.feed-header h1 {
+    font-size: 42px;
+    font-weight: 800;
+    color: #172033;
+    margin-bottom: 8px;
+}
+
+.feed-header p {
+    color: #667085;
+    font-size: 17px;
+    margin: 0;
+}
+
+
+/* =====================================================
+   NEWS CARD
+   ===================================================== */
+
+.feed-card {
+    background: #ffffff;
+    border-radius: 18px;
+    overflow: hidden;
+    margin-bottom: 28px;
+    border: 1px solid #e8edf3;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.06);
+
+    transition:
+        transform 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+.feed-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.10);
+}
+
+
+/* =====================================================
+   IMAGE
+   ===================================================== */
+
+.feed-image-wrapper {
+    width: 100%;
+    height: 300px;
+    background: #eef1f5;
+    overflow: hidden;
+}
+
+.feed-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+
+/* =====================================================
+   IMAGE PLACEHOLDER
+   ===================================================== */
+
+.feed-image-placeholder {
+    width: 100%;
+    height: 100%;
+
+    background:
+        linear-gradient(
+            135deg,
+            #eef2ff,
+            #f5f3ff
+        );
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    color: #8b5cf6;
+    font-size: 60px;
+}
+
+
+/* =====================================================
+   VIDEO
+   ===================================================== */
+
+.feed-video-wrapper {
+    width: 100%;
+    background: #000000;
+}
+
+.feed-video {
+    width: 100%;
+    max-height: 500px;
+    display: block;
+}
+
+
+/* =====================================================
+   AUDIO
+   ===================================================== */
+
+.feed-audio-wrapper {
+    padding: 18px 28px 0;
+}
+
+.feed-audio {
+    width: 100%;
+}
+
+
+/* =====================================================
+   CONTENT
+   ===================================================== */
+
+.feed-content {
+    padding: 25px 28px 28px;
+}
+
+
+/* =====================================================
+   CATEGORY
+   ===================================================== */
+
+.feed-category {
+    display: inline-block;
+
+    padding: 6px 12px;
+
+    border-radius: 999px;
+
+    background: #ede9fe;
+    color: #6d28d9;
+
+    font-size: 13px;
+    font-weight: 700;
+
+    margin-bottom: 12px;
+}
+
+
+/* =====================================================
+   TITLE
+   ===================================================== */
+
+.feed-title {
+    font-size: 27px;
+    line-height: 1.3;
+
+    font-weight: 800;
+
+    color: #172033;
+
+    margin-bottom: 9px;
+}
+
+
+/* =====================================================
+   SOURCE
+   ===================================================== */
+
+.feed-source {
+    color: #667085;
+    font-size: 15px;
+    margin-bottom: 15px;
+}
+
+.feed-source strong {
+    color: #344054;
+}
+
+
+/* =====================================================
+   DESCRIPTION
+   ===================================================== */
+
+.feed-description {
+    color: #475467;
+
+    font-size: 16px;
+    line-height: 1.65;
+
+    margin-bottom: 20px;
+}
+
+
+/* =====================================================
+   SCORE
+   ===================================================== */
+
+.feed-score {
+    display: inline-block;
+
+    background: #f2f4f7;
+    color: #475467;
+
+    padding: 5px 10px;
+
+    border-radius: 7px;
+
+    font-size: 13px;
+
+    margin-bottom: 18px;
+}
+
+
+/* =====================================================
+   ACTIONS
+   ===================================================== */
+
+.feed-actions {
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 10px;
+
+    align-items: center;
+}
+
+.action-form {
+    margin: 0;
+}
+
+
+/* =====================================================
+   COMMON BUTTON
+   ===================================================== */
+
+.action-button {
+    border: none;
+
+    border-radius: 9px;
+
+    padding: 10px 16px;
+
+    font-size: 14px;
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition: all 0.15s ease;
+}
+
+
+/* =====================================================
+   LIKE
+   ===================================================== */
+
+.like-button {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.like-button:hover,
+.like-button.active {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+
+/* =====================================================
+   SAVE
+   ===================================================== */
+
+.save-button {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.save-button:hover,
+.save-button.active {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+
+/* =====================================================
+   READ ORIGINAL ARTICLE
+   ===================================================== */
+
+.read-button {
+    display: inline-block;
+
+    text-decoration: none;
+
+    background: #2563eb;
+    color: white;
+
+    border-radius: 9px;
+
+    padding: 10px 17px;
+
+    font-size: 14px;
+    font-weight: 700;
+
+    transition: background 0.15s ease;
+}
+
+.read-button:hover {
+    background: #1d4ed8;
+
+    color: white;
+
+    text-decoration: none;
+}
+
+
+/* =====================================================
+   MEDIA LABEL
+   ===================================================== */
+
+.media-label {
+    display: inline-block;
+
+    margin-bottom: 10px;
+
+    padding: 5px 10px;
+
+    border-radius: 7px;
+
+    background: #f2f4f7;
+    color: #475467;
+
+    font-size: 12px;
+    font-weight: 700;
+}
+
+
+/* =====================================================
+   EMPTY FEED
+   ===================================================== */
+
+.empty-feed {
+    background: #ffffff;
+
+    border-radius: 18px;
+
+    padding: 60px 25px;
+
+    text-align: center;
+
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+}
+
+.empty-feed h2 {
+    color: #172033;
+
+    margin-bottom: 10px;
+}
+
+.empty-feed p {
+    color: #667085;
+
+    margin-bottom: 0;
+}
+
+
+/* =====================================================
+   MOBILE
+   ===================================================== */
+
+@media (max-width: 768px) {
+
+    .feed-header h1 {
+        font-size: 32px;
+    }
+
+    .feed-image-wrapper {
+        height: 220px;
+    }
+
+    .feed-content {
+        padding: 20px;
+    }
+
+    .feed-title {
+        font-size: 22px;
+    }
+
+    .feed-audio-wrapper {
+        padding: 15px 20px 0;
+    }
+
+    .feed-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .action-form {
+        width: 100%;
+    }
+
+    .action-button,
+    .read-button {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+</style>
+
+
+<div class="feed-page">
+
+
+    <!-- =================================================
+         HEADER
+         ================================================= -->
+
+    <div class="feed-header">
+
+        <h1>
+            ✨ Your Personalized Feed
+        </h1>
+
+        <p>
+            News recommendations based on your reading,
+            likes, and saved articles.
+        </p>
+
+    </div>
+
+
+    <!-- =================================================
+         RECOMMENDATIONS
+         ================================================= -->
 
     {% if recommendations %}
 
-        <div class="row">
+        {% for item in recommendations %}
 
-            {% for item in recommendations %}
+            {% set article = item.article %}
+            {% set score = item.score %}
 
-                <div class="col-md-6 mb-4">
 
-                    <div class="card h-100 shadow-sm">
+            <!-- =================================================
+                 NEWS CARD
+                 ================================================= -->
 
-                        <div class="card-body">
+            <article class="feed-card">
 
-                            <h5 class="card-title">
-                                {{ item.article.title }}
-                            </h5>
 
-                            {% if item.article.category %}
-                                <p class="text-muted mb-2">
-                                    Category: {{ item.article.category }}
-                                </p>
-                            {% endif %}
+                <!-- =============================================
+                     ARTICLE IMAGE
+                     ============================================= -->
 
-                            {% if item.article.source %}
-                                <p class="text-muted mb-2">
-                                    Source: {{ item.article.source }}
-                                </p>
-                            {% endif %}
+                <div class="feed-image-wrapper">
 
-                            <p class="card-text">
-                                {{ item.article.content[:250] }}
-                                {% if item.article.content and item.article.content|length > 250 %}
-                                    ...
-                                {% endif %}
-                            </p>
+                    {% if article.image_url %}
 
-                            <p class="small text-muted">
-                                Recommendation score:
-                                {{ "%.4f"|format(item.score) }}
-                            </p>
+                        <img
+                            src="{{ article.image_url }}"
+                            alt="{{ article.title }}"
+                            class="feed-image"
+                            loading="lazy"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                        >
 
-                            <a
-                                href="{{ url_for(
-                                    'main.view_article',
-                                    article_id=item.article.id
-                                ) }}"
-                                class="btn btn-primary"
+                        <!-- Fallback if image fails -->
+
+                        <div
+                            class="feed-image-placeholder"
+                            style="display: none;"
+                        >
+                            📰
+                        </div>
+
+                    {% else %}
+
+                        <div class="feed-image-placeholder">
+                            📰
+                        </div>
+
+                    {% endif %}
+
+                </div>
+
+
+                <!-- =============================================
+                     VIDEO
+                     ============================================= -->
+
+                {% if article.video_url %}
+
+                    <div class="feed-video-wrapper">
+
+                        <video
+                            class="feed-video"
+                            controls
+                            preload="metadata"
+                        >
+
+                            <source
+                                src="{{ article.video_url }}"
                             >
-                                Read Article
-                            </a>
+
+                            Your browser does not support
+                            video playback.
+
+                        </video>
+
+                    </div>
+
+                {% endif %}
+
+
+                <!-- =============================================
+                     AUDIO
+                     ============================================= -->
+
+                {% if article.audio_url %}
+
+                    <div class="feed-audio-wrapper">
+
+                        <div class="media-label">
+                            🎧 Audio
+                        </div>
+
+                        <audio
+                            class="feed-audio"
+                            controls
+                            preload="metadata"
+                        >
+
+                            <source
+                                src="{{ article.audio_url }}"
+                            >
+
+                            Your browser does not support
+                            audio playback.
+
+                        </audio>
+
+                    </div>
+
+                {% endif %}
+
+
+                <!-- =============================================
+                     ARTICLE CONTENT
+                     ============================================= -->
+
+                <div class="feed-content">
+
+
+                    <!-- =========================================
+                         CATEGORY
+                         ========================================= -->
+
+                    <div class="feed-category">
+
+                        {{ article.category or "General" }}
+
+                    </div>
+
+
+                    <!-- =========================================
+                         TITLE
+                         ========================================= -->
+
+                    <div class="feed-title">
+
+                        {{ article.title }}
+
+                    </div>
+
+
+                    <!-- =========================================
+                         SOURCE + DATE
+                         ========================================= -->
+
+                    <div class="feed-source">
+
+                        {% if article.source %}
+
+                            <strong>
+                                {{ article.source }}
+                            </strong>
+
+                        {% endif %}
+
+
+                        {% if article.published_at %}
+
+                            · {{ article.published_at }}
+
+                        {% endif %}
+
+                    </div>
+
+
+                    <!-- =========================================
+                         DESCRIPTION
+                         ========================================= -->
+
+                    {% if article.content %}
+
+                        <div class="feed-description">
+
+                            {{ article.content[:500] }}
+
+                            {% if article.content|length > 500 %}
+
+                                ...
+
+                            {% endif %}
 
                         </div>
+
+                    {% endif %}
+
+
+                    <!-- =========================================
+                         RECOMMENDATION SCORE
+                         ========================================= -->
+
+                    {% if score is not none %}
+
+                        <div class="feed-score">
+
+                            Recommendation score:
+                            {{ "%.4f"|format(score) }}
+
+                        </div>
+
+                    {% endif %}
+
+
+                    <!-- =========================================
+                         ACTIONS
+                         ========================================= -->
+
+                    <div class="feed-actions">
+
+
+                        <!-- =====================================
+                             LIKE
+                             ===================================== -->
+
+                        <form
+                            method="POST"
+                            action="{{ url_for(
+                                'main.like_article',
+                                article_id=article.id
+                            ) }}"
+                            class="action-form"
+                        >
+
+                            <button
+                                type="submit"
+                                class="action-button like-button
+                                {% if article.id in liked_ids %}
+                                    active
+                                {% endif %}"
+                            >
+
+                                {% if article.id in liked_ids %}
+
+                                    ❤️ Liked
+
+                                {% else %}
+
+                                    🤍 Like
+
+                                {% endif %}
+
+                            </button>
+
+                        </form>
+
+
+                        <!-- =====================================
+                             SAVE
+                             ===================================== -->
+
+                        <form
+                            method="POST"
+                            action="{{ url_for(
+                                'main.save_article',
+                                article_id=article.id
+                            ) }}"
+                            class="action-form"
+                        >
+
+                            <button
+                                type="submit"
+                                class="action-button save-button
+                                {% if article.id in saved_ids %}
+                                    active
+                                {% endif %}"
+                            >
+
+                                {% if article.id in saved_ids %}
+
+                                    🔖 Saved
+
+                                {% else %}
+
+                                    🔖 Save
+
+                                {% endif %}
+
+                            </button>
+
+                        </form>
+
+
+                        <!-- =====================================
+                             ORIGINAL NEWS ARTICLE
+                             ===================================== -->
+
+                        {% if article.url %}
+
+                            <a
+                                href="{{ article.url }}"
+                                class="read-button"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+
+                                Read Full Article →
+
+                            </a>
+
+                        {% endif %}
+
 
                     </div>
 
                 </div>
 
-            {% endfor %}
+            </article>
 
-        </div>
+        {% endfor %}
+
 
     {% else %}
 
-        <div class="alert alert-info">
-            We don't have enough information to personalize your feed yet.
-            Read, like, or save a few articles and check again.
+
+        <!-- =============================================
+             EMPTY FEED
+             ============================================= -->
+
+        <div class="empty-feed">
+
+            <h2>
+                📰 No recommendations yet
+            </h2>
+
+            <p>
+                Read, like, or save some articles and your
+                personalized feed will become more useful.
+            </p>
+
         </div>
 
     {% endif %}

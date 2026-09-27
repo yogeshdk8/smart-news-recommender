@@ -1,141 +1,186 @@
 """
 app/models.py
 
-Database schema:
-  User        - registered users, with hashed passwords
-  Article     - news articles (loaded from your Phase 2-4 pipeline)
-  Interaction - a log row every time a user views/likes/saves an article;
-                this history is the raw material for their "interest profile"
+Database models for:
+- users
+- news articles
+- user interactions
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 from flask_login import UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import (
+    generate_password_hash,
+    check_password_hash,
+)
 
 from app import db
 
 
 class User(UserMixin, db.Model):
-    id = db.Column(
-        db.Integer,
-        primary_key=True
-    )
+    """
+    Application user.
+
+    Stores:
+    - username
+    - email
+    - hashed password
+    """
+
+    id = db.Column(db.Integer, primary_key=True)
 
     username = db.Column(
         db.String(80),
         unique=True,
-        nullable=False
+        nullable=False,
     )
 
     email = db.Column(
         db.String(120),
         unique=True,
-        nullable=False
+        nullable=False,
     )
 
     password_hash = db.Column(
         db.String(255),
-        nullable=False
+        nullable=False,
     )
 
     interactions = db.relationship(
         "Interaction",
         backref="user",
         lazy=True,
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
 
-    def set_password(self, plain_password):
-        """Hash and store a password. Never store plain text."""
-        self.password_hash = generate_password_hash(plain_password)
+    def set_password(self, password):
+        """Hash and store the user's password."""
+        self.password_hash = generate_password_hash(password)
 
-    def check_password(self, plain_password):
-        """Compare a plain-text password against the stored hash."""
+    def check_password(self, password):
+        """Check a plain-text password against the stored hash."""
         return check_password_hash(
             self.password_hash,
-            plain_password
+            password,
         )
-
-    def __repr__(self):
-        return f"<User {self.username}>"
 
 
 class Article(db.Model):
+    """
+    News article.
+
+    Articles can contain:
+    - title
+    - description/content
+    - category
+    - source
+    - URL
+    - image
+    - optional video
+    - optional audio
+    - publication date
+    """
+
     id = db.Column(
         db.Integer,
-        primary_key=True
+        primary_key=True,
     )
 
     title = db.Column(
         db.String(300),
-        nullable=False
+        nullable=False,
     )
 
     content = db.Column(
-        db.Text
+        db.Text,
+        nullable=False,
+        default="",
     )
 
     category = db.Column(
-        db.String(50)
+        db.String(100),
+        nullable=True,
     )
 
     source = db.Column(
-        db.String(100)
+        db.String(100),
+        nullable=True,
     )
 
     url = db.Column(
         db.String(500),
-        unique=True
+        unique=True,
+        nullable=True,
+    )
+
+    image_url = db.Column(
+        db.String(1000),
+        nullable=True,
+    )
+
+    video_url = db.Column(
+        db.String(1000),
+        nullable=True,
+    )
+
+    audio_url = db.Column(
+        db.String(1000),
+        nullable=True,
     )
 
     published_at = db.Column(
-        db.String(50)
+        db.String(100),
+        nullable=True,
     )
 
-    interactions = db.relationship(
-        "Interaction",
-        backref="article",
-        lazy=True,
-        cascade="all, delete-orphan"
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
     )
-
-    def __repr__(self):
-        return f"<Article {self.title[:40]!r}>"
 
 
 class Interaction(db.Model):
+    """
+    User interaction with an article.
+
+    Types:
+    - view
+    - like
+    - save
+    """
+
     id = db.Column(
         db.Integer,
-        primary_key=True
+        primary_key=True,
     )
 
     user_id = db.Column(
         db.Integer,
         db.ForeignKey("user.id"),
-        nullable=False
+        nullable=False,
     )
 
     article_id = db.Column(
         db.Integer,
         db.ForeignKey("article.id"),
-        nullable=False
+        nullable=False,
     )
 
     type = db.Column(
         db.String(20),
-        nullable=False
-    )  # "view" / "like" / "save"
+        nullable=False,
+    )
 
     timestamp = db.Column(
         db.DateTime,
-        default=lambda: datetime.now(timezone.utc)
+        default=datetime.utcnow,
     )
 
-    def __repr__(self):
-        return (
-            f"<Interaction "
-            f"user={self.user_id} "
-            f"article={self.article_id} "
-            f"type={self.type}>"
-        )
+    article = db.relationship(
+        "Article",
+        backref=db.backref(
+            "interactions",
+            lazy=True,
+        ),
+    )

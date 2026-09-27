@@ -1,210 +1,1255 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
 
-{% block title %}Analytics{% endblock %}
+<head>
 
-{% block content %}
+    <meta charset="UTF-8">
 
-<div class="container mt-4">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
 
-    <h1 class="mb-2">Recommendation Analytics</h1>
+    <title>
+        Analytics - Smart News Recommender
+    </title>
 
-    <p class="text-muted mb-4">
-        Overview of article engagement and recommendation performance.
-    </p>
 
-    <!-- Hit Rate -->
+    <!-- =====================================================
+         BOOTSTRAP
+         ===================================================== -->
 
-    <div class="row mb-4">
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
 
-        <div class="col-md-6">
 
-            <div class="card shadow-sm h-100">
+    <!-- =====================================================
+         PLOTLY
+         ===================================================== -->
 
-                <div class="card-body">
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 
-                    <h5 class="card-title">
-                        System Hit Rate@5
-                    </h5>
 
-                    <div class="display-5 fw-bold mb-2">
-                        {{ hit_rate }}
+    <!-- =====================================================
+         CUSTOM STYLES
+         ===================================================== -->
+
+    <style>
+
+        body {
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+
+
+        /* ==================================================
+           PAGE HEADER
+           ================================================== */
+
+        .page-header {
+            margin-bottom: 30px;
+        }
+
+        .page-header h1 {
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .page-header p {
+            color: #6b7280;
+            margin-bottom: 0;
+        }
+
+
+        /* ==================================================
+           SUMMARY CARDS
+           ================================================== */
+
+        .stat-card {
+            background: white;
+            border: none;
+            border-radius: 18px;
+            padding: 24px;
+            height: 100%;
+            box-shadow:
+                0 4px 18px rgba(0, 0, 0, 0.06);
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+        }
+
+
+        /* ==================================================
+           ANALYTICS SECTIONS
+           ================================================== */
+
+        .analytics-card {
+            background: white;
+            border: none;
+            border-radius: 18px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow:
+                0 4px 18px rgba(0, 0, 0, 0.06);
+        }
+
+        .analytics-card h3 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .analytics-card .subtitle {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+
+        /* ==================================================
+           RECOMMENDATION METRIC CARDS
+           ================================================== */
+
+        .metric-card {
+            background: #ffffff;
+            border: 1px solid #eef0f4;
+            border-radius: 18px;
+            padding: 26px 20px;
+            height: 100%;
+            text-align: center;
+            box-shadow:
+                0 3px 12px rgba(0, 0, 0, 0.04);
+        }
+
+        .metric-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #6b7280;
+        }
+
+        .metric-value {
+            font-size: 40px;
+            font-weight: 800;
+            margin-top: 8px;
+        }
+
+        .metric-description {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+
+        /* ==================================================
+           EVALUATION NOTE
+           ================================================== */
+
+        .evaluation-note {
+            background: #f8fafc;
+            border-left: 4px solid #6c757d;
+            padding: 15px 17px;
+            border-radius: 8px;
+            color: #4b5563;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-top: 22px;
+        }
+
+
+        /* ==================================================
+           CHARTS
+           ================================================== */
+
+        .chart-container {
+            width: 100%;
+            min-height: 360px;
+        }
+
+
+        /* ==================================================
+           TABLE
+           ================================================== */
+
+        .table-card {
+            overflow-x: auto;
+        }
+
+        .article-title {
+            max-width: 650px;
+            white-space: normal;
+            line-height: 1.5;
+        }
+
+
+        /* ==================================================
+           CATEGORY BADGE
+           ================================================== */
+
+        .category-badge {
+            background: #eef2ff;
+            color: #3730a3;
+            padding: 5px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+
+        /* ==================================================
+           EMPTY MESSAGE
+           ================================================== */
+
+        .empty-message {
+            color: #6b7280;
+            padding: 20px 0;
+        }
+
+
+        /* ==================================================
+           SECTION SPACING
+           ================================================== */
+
+        .section-spacing {
+            margin-top: 28px;
+        }
+
+
+        /* ==================================================
+           SMALL SCREEN
+           ================================================== */
+
+        @media (max-width: 768px) {
+
+            .container-fluid {
+                padding-left: 16px !important;
+                padding-right: 16px !important;
+            }
+
+            .stat-value {
+                font-size: 28px;
+            }
+
+            .metric-value {
+                font-size: 34px;
+            }
+
+            .chart-container {
+                min-height: 300px;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<div class="container-fluid px-4 px-lg-5 py-4">
+
+
+    <!-- =====================================================
+         PAGE HEADER
+         ===================================================== -->
+
+    <div class="page-header">
+
+        <h1>
+            📊 Analytics
+        </h1>
+
+        <p>
+            Understand your reading behavior and recommendation
+            system performance.
+        </p>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         PERSONAL READING SUMMARY
+         ===================================================== -->
+
+    <div class="row g-4">
+
+
+        <!-- TOTAL VIEWS -->
+
+        <div class="col-12 col-sm-6 col-lg-3">
+
+            <div class="stat-card">
+
+                <div class="stat-label">
+                    📰 Total Views
+                </div>
+
+                <div class="stat-value">
+                    {{ total_views }}
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- TOTAL LIKES -->
+
+        <div class="col-12 col-sm-6 col-lg-3">
+
+            <div class="stat-card">
+
+                <div class="stat-label">
+                    ❤️ Total Likes
+                </div>
+
+                <div class="stat-value">
+                    {{ total_likes }}
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- TOTAL SAVES -->
+
+        <div class="col-12 col-sm-6 col-lg-3">
+
+            <div class="stat-card">
+
+                <div class="stat-label">
+                    🔖 Total Saves
+                </div>
+
+                <div class="stat-value">
+                    {{ total_saves }}
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- UNIQUE ARTICLES -->
+
+        <div class="col-12 col-sm-6 col-lg-3">
+
+            <div class="stat-card">
+
+                <div class="stat-label">
+                    📚 Unique Articles Viewed
+                </div>
+
+                <div class="stat-value">
+                    {{ unique_viewed_articles }}
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         RECOMMENDATION SYSTEM
+         ===================================================== -->
+
+    <div class="analytics-card section-spacing">
+
+
+        <h3>
+            🤖 Recommendation System
+        </h3>
+
+
+        <div class="subtitle">
+
+            Offline leave-one-article-out evaluation
+
+        </div>
+
+
+
+        <div class="row g-4">
+
+
+            <!-- =================================================
+                 HIT RATE @5
+                 ================================================= -->
+
+            <div class="col-12 col-md-4">
+
+                <div class="metric-card">
+
+                    <div class="metric-title">
+
+                        Hit Rate@5
+
                     </div>
 
-                    <p class="text-muted mb-0">
-                        Evaluated on {{ evaluated_users }} users.
-                    </p>
+
+                    <div class="metric-value">
+
+                        {{ hit_rate_5 }}
+
+                    </div>
+
+
+                    <div class="metric-description">
+
+                        Held-out article found within the
+                        top 5 recommendations.
+
+                    </div>
 
                 </div>
 
             </div>
 
-        </div>
 
-        <div class="col-md-6">
 
-            <div class="card shadow-sm h-100">
+            <!-- =================================================
+                 HIT RATE @10
+                 ================================================= -->
 
-                <div class="card-body">
+            <div class="col-12 col-md-4">
 
-                    <h5 class="card-title">
-                        Evaluation Method
-                    </h5>
+                <div class="metric-card">
 
-                    <p class="mb-2">
-                        Leave-one-out evaluation.
-                    </p>
+                    <div class="metric-title">
 
-                    <p class="text-muted mb-0">
-                        The most recent interaction for each eligible
-                        user is hidden and checked against the top-5
-                        recommendations.
-                    </p>
+                        Hit Rate@10
+
+                    </div>
+
+
+                    <div class="metric-value">
+
+                        {{ hit_rate_10 }}
+
+                    </div>
+
+
+                    <div class="metric-description">
+
+                        Held-out article found within the
+                        top 10 recommendations.
+
+                    </div>
 
                 </div>
 
             </div>
 
+
+
+            <!-- =================================================
+                 HIT RATE @20
+                 ================================================= -->
+
+            <div class="col-12 col-md-4">
+
+                <div class="metric-card">
+
+                    <div class="metric-title">
+
+                        Hit Rate@20
+
+                    </div>
+
+
+                    <div class="metric-value">
+
+                        {{ hit_rate_20 }}
+
+                    </div>
+
+
+                    <div class="metric-description">
+
+                        Held-out article found within the
+                        top 20 recommendations.
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
         </div>
 
-    </div>
 
 
-    <!-- Views Over Time -->
+        <!-- =================================================
+             EVALUATION INFORMATION
+             ================================================= -->
 
-    <div class="card shadow-sm mb-4">
+        <div class="evaluation-note">
 
-        <div class="card-body">
+            <strong>
+                Evaluated on {{ evaluated_users }} user(s).
+            </strong>
 
-            <h5 class="card-title mb-3">
-                Views Over Time
-            </h5>
+            <br>
 
-            <div id="views-chart"></div>
+            Hit Rate measures whether a user's held-out
+            article appears inside the recommendation list.
+
+            <br>
+
+            Current evaluation:
+
+            <strong>
+                @5 = {{ hit_rate_5 }}
+            </strong>,
+
+            <strong>
+                @10 = {{ hit_rate_10 }}
+            </strong>,
+
+            <strong>
+                @20 = {{ hit_rate_20 }}
+            </strong>.
+
+            <br>
+
+            Because the current evaluation contains only a small
+            number of users, the percentages can change
+            substantially as more users and interactions are
+            collected.
 
         </div>
 
+
     </div>
 
 
-    <!-- Category Breakdown -->
 
-    <div class="card shadow-sm mb-4">
+    <!-- =====================================================
+         VIEWS OVER TIME
+         ===================================================== -->
 
-        <div class="card-body">
+    <div class="analytics-card">
 
-            <h5 class="card-title mb-3">
-                Views by Category
-            </h5>
 
-            <div id="category-chart"></div>
+        <h3>
+            📈 Views Over Time
+        </h3>
+
+
+        <div class="subtitle">
+
+            Number of articles opened by date.
 
         </div>
 
+
+        {% if views_dates %}
+
+        <div
+            id="viewsOverTimeChart"
+            class="chart-container"
+        ></div>
+
+        {% else %}
+
+        <div class="empty-message">
+
+            No article views recorded yet.
+
+        </div>
+
+        {% endif %}
+
+
     </div>
 
 
-    <!-- Explanation -->
 
-    <div class="alert alert-info">
+    <!-- =====================================================
+         AVAILABLE CATEGORIES
+         ===================================================== -->
 
-        <h5 class="alert-heading">
-            About this dashboard
-        </h5>
+    <div class="analytics-card">
 
-        <p class="mb-2">
-            Recommendations combine content-based similarity with
-            neural collaborative filtering.
-        </p>
 
-        <p class="mb-0">
-            Hit Rate@5 is based on the current interaction history.
-            With a small number of users and interactions, the metric
-            may be unstable and should not be interpreted as a
-            definitive measure of production performance.
-        </p>
+        <h3>
+            🗂️ Available News Categories
+        </h3>
+
+
+        <div class="subtitle">
+
+            Distribution of articles currently available
+            in the database.
+
+        </div>
+
+
+        {% if available_categories %}
+
+        <div
+            id="availableCategoriesChart"
+            class="chart-container"
+        ></div>
+
+        {% else %}
+
+        <div class="empty-message">
+
+            No categories available yet.
+
+        </div>
+
+        {% endif %}
+
 
     </div>
+
+
+
+    <!-- =====================================================
+         VIEWS BY CATEGORY
+         ===================================================== -->
+
+    <div class="analytics-card">
+
+
+        <h3>
+            👀 Your Views by Category
+        </h3>
+
+
+        <div class="subtitle">
+
+            Categories of news articles you have viewed.
+
+        </div>
+
+
+        {% if view_categories %}
+
+        <div
+            id="viewsByCategoryChart"
+            class="chart-container"
+        ></div>
+
+        {% else %}
+
+        <div class="empty-message">
+
+            No category views recorded yet.
+
+        </div>
+
+        {% endif %}
+
+
+    </div>
+
+
+
+    <!-- =====================================================
+         LIKED CATEGORIES
+         ===================================================== -->
+
+    <div class="analytics-card">
+
+
+        <h3>
+            ❤️ Categories You Like
+        </h3>
+
+
+        <div class="subtitle">
+
+            Categories of articles you have liked.
+
+        </div>
+
+
+        {% if liked_categories %}
+
+        <div
+            id="likedCategoriesChart"
+            class="chart-container"
+        ></div>
+
+        {% else %}
+
+        <div class="empty-message">
+
+            You have not liked any articles yet.
+
+        </div>
+
+        {% endif %}
+
+
+    </div>
+
+
+
+    <!-- =====================================================
+         SAVED CATEGORIES
+         ===================================================== -->
+
+    <div class="analytics-card">
+
+
+        <h3>
+            🔖 Categories You Saved
+        </h3>
+
+
+        <div class="subtitle">
+
+            Categories of articles you have saved.
+
+        </div>
+
+
+        {% if saved_categories %}
+
+        <div
+            id="savedCategoriesChart"
+            class="chart-container"
+        ></div>
+
+        {% else %}
+
+        <div class="empty-message">
+
+            You have not saved any articles yet.
+
+        </div>
+
+        {% endif %}
+
+
+    </div>
+
+
+
+    <!-- =====================================================
+         ARTICLES VIEWED
+         ===================================================== -->
+
+    <div class="analytics-card table-card">
+
+
+        <h3>
+            📰 Articles You Viewed
+        </h3>
+
+
+        <div class="subtitle">
+
+            Number of times each article has been opened.
+
+        </div>
+
+
+        {% if viewed_articles %}
+
+
+        <table class="table table-hover align-middle">
+
+
+            <thead>
+
+                <tr>
+
+                    <th>
+                        Article
+                    </th>
+
+                    <th>
+                        Category
+                    </th>
+
+                    <th>
+                        Views
+                    </th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody>
+
+
+            {% for article in viewed_articles %}
+
+
+                <tr>
+
+
+                    <!-- ARTICLE TITLE -->
+
+                    <td class="article-title">
+
+                        {{ article.title }}
+
+                    </td>
+
+
+                    <!-- CATEGORY -->
+
+                    <td>
+
+                        <span class="category-badge">
+
+                            {{ article.category }}
+
+                        </span>
+
+                    </td>
+
+
+                    <!-- VIEW COUNT -->
+
+                    <td>
+
+                        <strong>
+
+                            {{ article.views }}
+
+                        </strong>
+
+                    </td>
+
+
+                </tr>
+
+
+            {% endfor %}
+
+
+            </tbody>
+
+
+        </table>
+
+
+        {% else %}
+
+
+        <div class="empty-message">
+
+            You have not viewed any articles yet.
+
+        </div>
+
+
+        {% endif %}
+
+
+    </div>
+
 
 </div>
 
 
-<!-- Plotly -->
 
-<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<!-- =========================================================
+     PLOTLY CHARTS
+     ========================================================= -->
 
 <script>
 
-    const viewsDates = {{ views_dates | tojson }};
-    const viewsCounts = {{ views_counts | tojson }};
 
-    const categories = {{ categories | tojson }};
-    const categoryValues = {{ category_values | tojson }};
+    /* ========================================================
+       GLOBAL CHART CONFIGURATION
+       ======================================================== */
 
+    const chartConfig = {
 
-    // Views over time
+        responsive: true,
 
-    const viewsTrace = {
-        x: viewsDates,
-        y: viewsCounts,
-        type: "scatter",
-        mode: "lines+markers",
-        name: "Views"
+        displayModeBar: false
+
     };
 
-    const viewsLayout = {
-        title: "Article Views Over Time",
-        xaxis: {
-            title: "Date"
-        },
-        yaxis: {
-            title: "Number of Views"
-        },
-        margin: {
-            t: 50,
-            r: 20,
-            b: 60,
-            l: 60
-        }
-    };
+
+
+    /* ========================================================
+       VIEWS OVER TIME
+       ======================================================== */
+
+    {% if views_dates %}
 
     Plotly.newPlot(
-        "views-chart",
-        [viewsTrace],
-        viewsLayout,
+
+        "viewsOverTimeChart",
+
+        [
+
+            {
+
+                x: {{ views_dates | tojson }},
+
+                y: {{ views_counts | tojson }},
+
+                type: "scatter",
+
+                mode: "lines+markers",
+
+                line: {
+
+                    width: 3
+
+                },
+
+                marker: {
+
+                    size: 8
+
+                }
+
+            }
+
+        ],
+
         {
-            responsive: true
-        }
+
+            margin: {
+
+                t: 20,
+
+                r: 20,
+
+                b: 60,
+
+                l: 55
+
+            },
+
+            xaxis: {
+
+                title: "Date"
+
+            },
+
+            yaxis: {
+
+                title: "Views",
+
+                rangemode: "tozero"
+
+            },
+
+            paper_bgcolor: "white",
+
+            plot_bgcolor: "white"
+
+        },
+
+        chartConfig
+
     );
 
+    {% endif %}
 
-    // Category breakdown
 
-    const categoryTrace = {
-        labels: categories,
-        values: categoryValues,
-        type: "pie",
-        hole: 0.3
-    };
 
-    const categoryLayout = {
-        title: "Article Views by Category",
-        margin: {
-            t: 50,
-            r: 20,
-            b: 20,
-            l: 20
-        }
-    };
+    /* ========================================================
+       AVAILABLE CATEGORIES
+       ======================================================== */
+
+    {% if available_categories %}
 
     Plotly.newPlot(
-        "category-chart",
-        [categoryTrace],
-        categoryLayout,
+
+        "availableCategoriesChart",
+
+        [
+
+            {
+
+                labels:
+                    {{ available_categories | tojson }},
+
+                values:
+                    {{ available_category_values | tojson }},
+
+                type: "pie",
+
+                hole: 0.45
+
+            }
+
+        ],
+
         {
-            responsive: true
-        }
+
+            margin: {
+
+                t: 20,
+
+                r: 20,
+
+                b: 20,
+
+                l: 20
+
+            },
+
+            showlegend: true,
+
+            paper_bgcolor: "white"
+
+        },
+
+        chartConfig
+
     );
+
+    {% endif %}
+
+
+
+    /* ========================================================
+       VIEWS BY CATEGORY
+       ======================================================== */
+
+    {% if view_categories %}
+
+    Plotly.newPlot(
+
+        "viewsByCategoryChart",
+
+        [
+
+            {
+
+                x:
+                    {{ view_categories | tojson }},
+
+                y:
+                    {{ view_category_values | tojson }},
+
+                type: "bar"
+
+            }
+
+        ],
+
+        {
+
+            margin: {
+
+                t: 20,
+
+                r: 20,
+
+                b: 90,
+
+                l: 55
+
+            },
+
+            xaxis: {
+
+                title: "Category",
+
+                tickangle: -35
+
+            },
+
+            yaxis: {
+
+                title: "Views",
+
+                rangemode: "tozero"
+
+            },
+
+            paper_bgcolor: "white",
+
+            plot_bgcolor: "white"
+
+        },
+
+        chartConfig
+
+    );
+
+    {% endif %}
+
+
+
+    /* ========================================================
+       LIKED CATEGORIES
+       ======================================================== */
+
+    {% if liked_categories %}
+
+    Plotly.newPlot(
+
+        "likedCategoriesChart",
+
+        [
+
+            {
+
+                x:
+                    {{ liked_categories | tojson }},
+
+                y:
+                    {{ liked_category_values | tojson }},
+
+                type: "bar"
+
+            }
+
+        ],
+
+        {
+
+            margin: {
+
+                t: 20,
+
+                r: 20,
+
+                b: 90,
+
+                l: 55
+
+            },
+
+            xaxis: {
+
+                title: "Category",
+
+                tickangle: -35
+
+            },
+
+            yaxis: {
+
+                title: "Likes",
+
+                rangemode: "tozero"
+
+            },
+
+            paper_bgcolor: "white",
+
+            plot_bgcolor: "white"
+
+        },
+
+        chartConfig
+
+    );
+
+    {% endif %}
+
+
+
+    /* ========================================================
+       SAVED CATEGORIES
+       ======================================================== */
+
+    {% if saved_categories %}
+
+    Plotly.newPlot(
+
+        "savedCategoriesChart",
+
+        [
+
+            {
+
+                x:
+                    {{ saved_categories | tojson }},
+
+                y:
+                    {{ saved_category_values | tojson }},
+
+                type: "bar"
+
+            }
+
+        ],
+
+        {
+
+            margin: {
+
+                t: 20,
+
+                r: 20,
+
+                b: 90,
+
+                l: 55
+
+            },
+
+            xaxis: {
+
+                title: "Category",
+
+                tickangle: -35
+
+            },
+
+            yaxis: {
+
+                title: "Saves",
+
+                rangemode: "tozero"
+
+            },
+
+            paper_bgcolor: "white",
+
+            plot_bgcolor: "white"
+
+        },
+
+        chartConfig
+
+    );
+
+    {% endif %}
+
 
 </script>
 
-{% endblock %}
+
+
+<!-- =========================================================
+     BOOTSTRAP JAVASCRIPT
+     ========================================================= -->
+
+<script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+></script>
+
+
+</body>
+
+</html>

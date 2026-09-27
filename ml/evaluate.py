@@ -1,22 +1,28 @@
 """
 ml/evaluate.py
 
-Phase 7 — Offline evaluation of the content-based recommender.
+Offline evaluation of the content-based recommender.
 
-Method: leave-one-out Hit Rate@K.
+Metrics:
+    Hit Rate@5
+    Hit Rate@10
+    Hit Rate@20
 
-For each user with enough history:
-1. Sort their interactions by timestamp.
-2. Hide their most recent interaction.
-3. Build recommendations from the remaining interactions.
-4. Check whether the hidden article appears in the top-K recommendations.
+Method:
+    Leave-one-article-out evaluation.
 
-Because there is exactly one held-out article per evaluated user,
-the metric is called Hit Rate@K rather than conventional Precision@K.
+For each user:
 
-Run from the project root:
+1. Sort interactions chronologically.
+2. Find the user's most recently interacted unique article.
+3. Hold out that article completely.
+4. Remove all interactions with that article from training.
+5. Generate recommendations from the remaining interactions.
+6. Check whether the held-out article appears in the top K.
 
-    python -m ml.evaluate
+The evaluator reports several K values because Hit Rate@5 can be
+very strict when the article catalogue is large and user history
+is still small.
 """
 
 from collections import defaultdict
@@ -26,16 +32,12 @@ from app.models import Interaction
 from ml.recommender import recommend_from_interactions
 
 
-def hit_rate_at_k(k=5, min_interactions=2):
+def evaluate_hit_rate(k=5, min_interactions=2):
     """
-    Calculate leave-one-out Hit Rate@K.
+    Calculate leave-one-article-out Hit Rate@K.
 
     Returns:
-        (score, evaluated_user_count)
-
-    score:
-        Hit Rate@K as a decimal, or None if no users had enough
-        interaction history to evaluate.
+        score, evaluated_users
     """
 
     app = create_app()
@@ -44,6 +46,7 @@ def hit_rate_at_k(k=5, min_interactions=2):
         interactions = (
             Interaction.query
             .order_by(
+                Interaction.user_id.asc(),
                 Interaction.timestamp.asc(),
                 Interaction.id.asc(),
             )
@@ -65,16 +68,28 @@ def hit_rate_at_k(k=5, min_interactions=2):
 
     for user_id, user_interactions in by_user.items():
 
-        if len(user_interactions) < min_interactions:
+        # Preserve chronological order while removing duplicate articles.
+        unique_articles = []
+        seen_articles = set()
+
+        for article_id, interaction_type in user_interactions:
+            if article_id not in seen_articles:
+                seen_articles.add(article_id)
+                unique_articles.append(article_id)
+
+        if len(unique_articles) < min_interactions:
             continue
 
-        # Hold out the user's most recent interaction.
-        train = user_interactions[:-1]
-        held_out = user_interactions[-1]
+        # Hold out the most recently interacted unique article.
+        held_out_article_id = unique_articles[-1]
 
-        held_out_article_id, _ = held_out
+        # Remove ALL interactions with the held-out article.
+        train = [
+            (article_id, interaction_type)
+            for article_id, interaction_type in user_interactions
+            if article_id != held_out_article_id
+        ]
 
-        # Do not recommend articles already used in the training history.
         train_article_ids = {
             article_id
             for article_id, _ in train
@@ -99,25 +114,53 @@ def hit_rate_at_k(k=5, min_interactions=2):
     if evaluated_users == 0:
         return None, 0
 
-    score = hits / evaluated_users
+    return hits / evaluated_users, evaluated_users
 
-    return score, evaluated_users
+
+def evaluate_all():
+    """
+    Calculate Hit Rate@5, Hit Rate@10 and Hit Rate@20.
+    """
+
+    results = {}
+
+    for k in (5, 10, 20):
+        score, users = evaluate_hit_rate(k=k)
+
+        results[k] = {
+            "score": score,
+            "users": users,
+        }
+
+    return results
 
 
 def main():
-    score, evaluated_users = hit_rate_at_k(k=5)
 
-    if score is None:
-        print(
-            "Not enough users with 2+ interactions yet to evaluate. "
-            "Interact with a few more articles as 2-3 different users, "
-            "then rerun."
-        )
-    else:
-        print(
-            f"Hit Rate@5: {score:.3f} "
-            f"(evaluated on {evaluated_users} users)"
-        )
+    results = evaluate_all()
+
+    print()
+    print("=" * 50)
+    print("Recommendation System Evaluation")
+    print("=" * 50)
+
+    for k in (5, 10, 20):
+
+        score = results[k]["score"]
+        users = results[k]["users"]
+
+        if score is None:
+            print(
+                f"Hit Rate@{k}: Not enough data "
+                f"(evaluated on {users} users)"
+            )
+        else:
+            print(
+                f"Hit Rate@{k}: {score * 100:.1f}% "
+                f"(evaluated on {users} users)"
+            )
+
+    print("=" * 50)
 
 
 if __name__ == "__main__":

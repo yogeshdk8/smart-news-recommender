@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Saved Articles{% endblock %}
+
+
+{% block extra_head %}
+
+<style>
+
+    .saved-header {
+
+        margin-bottom: 30px;
+    }
+
+
+    .saved-header h1 {
+
+        font-size: 38px;
+
+        font-weight: 800;
+
+        color: #111827;
+    }
+
+
+    .saved-header p {
+
+        color: #6b7280;
+    }
+
+
+    .saved-card {
+
+        background: white;
+
+        border-radius: 18px;
+
+        overflow: hidden;
+
+        border: 1px solid #e5e7eb;
+
+        box-shadow:
+            0 8px 25px
+            rgba(15, 23, 42, 0.07);
+
+        margin-bottom: 25px;
+    }
+
+
+    .saved-image {
+
+        width: 100%;
+
+        height: 230px;
+
+        object-fit: cover;
+    }
+
+
+    .saved-placeholder {
+
+        height: 230px;
+
+        background: #eef2ff;
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: center;
+
+        font-size: 50px;
+    }
+
+
+    .saved-body {
+
+        padding: 22px;
+    }
+
+
+    .saved-title {
+
+        font-size: 22px;
+
+        font-weight: 800;
+
+        line-height: 1.35;
+
+        margin-bottom: 12px;
+    }
+
+
+    .saved-content {
+
+        color: #6b7280;
+
+        line-height: 1.6;
+
+        margin-bottom: 18px;
+    }
+
+
+    .saved-actions {
+
+        display: flex;
+
+        gap: 10px;
+
+        flex-wrap: wrap;
+    }
+
+</style>
+
+{% endblock %}
+
+
+{% block content %}
+
+<div class="saved-header">
+
+    <h1>🔖 Saved Articles</h1>
+
+    <p>
+        Articles you saved for reading later.
+    </p>
+
+</div>
+
+
+{% if articles %}
+
+    <div class="row">
+
+        {% for article in articles %}
+
+            <div class="col-lg-8 mx-auto">
+
+                <article class="saved-card">
+
+                    {% if article.image_url %}
+
+                        <img
+                            src="{{ article.image_url }}"
+                            alt="{{ article.title }}"
+                            class="saved-image"
+                            loading="lazy"
+                        >
+
+                    {% else %}
+
+                        <div class="saved-placeholder">
+                            📰
+                        </div>
+
+                    {% endif %}
+
+
+                    <div class="saved-body">
+
+                        <h2 class="saved-title">
+                            {{ article.title }}
+                        </h2>
+
+
+                        {% if article.source %}
+
+                            <p class="text-muted">
+                                {{ article.source }}
+                            </p>
+
+                        {% endif %}
+
+
+                        {% if article.content %}
+
+                            <div class="saved-content">
+
+                                {{ article.content[:500] }}
+
+                                {% if article.content|length > 500 %}
+                                    ...
+                                {% endif %}
+
+                            </div>
+
+                        {% endif %}
+
+
+                        <div class="saved-actions">
+
+                            <a
+                                href="{{ url_for(
+                                    'main.view_article',
+                                    article_id=article.id
+                                ) }}"
+                                class="btn btn-primary"
+                            >
+                                📖 Read Article
+                            </a>
+
+                        </div>
+
+                    </div>
+
+                </article>
+
+            </div>
+
+        {% endfor %}
+
+    </div>
+
+{% else %}
+
+    <div class="alert alert-info">
+
+        <h5>No saved articles yet.</h5>
+
+        <p class="mb-0">
+            Click 🔖 Save on any article and it will appear here.
+        </p>
+
+    </div>
+
+{% endif %}
+
+{% endblock %}
