@@ -1,0 +1,17 @@
+{
+  "number_of_articles": 122,
+  "text_features": 5000,
+  "title_description_features": 2000,
+  "category_features": 6,
+  "recency_features": 1,
+  "combined_features": 7007,
+  "text_weight": 1.0,
+  "title_weight": 1.5,
+  "recency_decay_days": 30.0,
+  "feature_groups": [
+    "tfidf_cleaned_text",
+    "tfidf_title_description",
+    "category",
+    "recency"
+  ]
+}

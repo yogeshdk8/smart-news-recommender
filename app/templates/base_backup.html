@@ -160,9 +160,8 @@
 
         .navbar-toggler-icon {
 
-            filter:
-                brightness(0)
-                invert(1);
+            filter: brightness(0)
+                    invert(1);
         }
 
 
@@ -177,7 +176,7 @@
             margin: auto;
 
             padding:
-                35px 20px 100px;
+                35px 20px 60px;
         }
 
 
@@ -506,6 +505,7 @@
 
             transition: 0.2s;
 
+            /* Important for AJAX buttons */
             user-select: none;
         }
 
@@ -519,10 +519,6 @@
             transform: none !important;
         }
 
-
-        /* =====================================================
-           LIKE BUTTON
-        ===================================================== */
 
         .like-button {
 
@@ -541,7 +537,6 @@
         }
 
 
-        .like-button.active,
         .like-button.liked {
 
             background: #dc2626;
@@ -550,16 +545,11 @@
         }
 
 
-        .like-button.active:hover,
         .like-button.liked:hover {
 
             background: #b91c1c;
         }
 
-
-        /* =====================================================
-           SAVE BUTTON
-        ===================================================== */
 
         .save-button {
 
@@ -578,7 +568,6 @@
         }
 
 
-        .save-button.active,
         .save-button.saved {
 
             background: #d97706;
@@ -587,16 +576,11 @@
         }
 
 
-        .save-button.active:hover,
         .save-button.saved:hover {
 
             background: #b45309;
         }
 
-
-        /* =====================================================
-           READ BUTTON
-        ===================================================== */
 
         .read-button {
 
@@ -620,10 +604,6 @@
                 translateY(-1px);
         }
 
-
-        /* =====================================================
-           SOURCE BUTTON
-        ===================================================== */
 
         .source-button {
 
@@ -665,118 +645,6 @@
             font-size: 12px;
 
             font-weight: 700;
-        }
-
-
-        /* =====================================================
-           GLOBAL REFRESH BUTTON
-
-           Appears on:
-           - Latest News
-           - Search
-           - Your Feed
-
-           IMPORTANT:
-           No type=int is used anywhere in this template.
-
-           The current page variables are supplied by routes.py:
-           - latest_page
-           - latest_has_more
-           - search_page
-           - search_has_more
-           - feed_page
-           - feed_has_more
-        ===================================================== */
-
-        .global-refresh-button {
-
-            position: fixed;
-
-            left: 20px;
-
-            bottom: 20px;
-
-            z-index: 2000;
-
-            display: inline-flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            gap: 8px;
-
-            min-width: 150px;
-
-            min-height: 50px;
-
-            padding:
-                12px 18px;
-
-            border: none;
-
-            border-radius: 12px;
-
-            background:
-                linear-gradient(
-                    135deg,
-                    #111827,
-                    #1f2937
-                );
-
-            color: white !important;
-
-            text-decoration: none;
-
-            font-size: 15px;
-
-            font-weight: 700;
-
-            box-shadow:
-                0 8px 25px
-                rgba(15, 23, 42, 0.25);
-
-            transition:
-                transform 0.2s ease,
-                box-shadow 0.2s ease,
-                background 0.2s ease;
-        }
-
-
-        .global-refresh-button:hover {
-
-            color: white !important;
-
-            background:
-                linear-gradient(
-                    135deg,
-                    #1f2937,
-                    #374151
-                );
-
-            transform:
-                translateY(-2px);
-
-            box-shadow:
-                0 12px 30px
-                rgba(15, 23, 42, 0.32);
-        }
-
-
-        .global-refresh-button:active {
-
-            transform:
-                translateY(0);
-        }
-
-
-        .refresh-icon {
-
-            display: inline-block;
-
-            font-size: 20px;
-
-            line-height: 1;
         }
 
 
@@ -1377,7 +1245,7 @@
             .page-container {
 
                 padding:
-                    25px 15px 120px;
+                    25px 15px 50px;
             }
 
 
@@ -1433,27 +1301,6 @@
                 width: 100%;
 
                 text-align: center;
-            }
-
-
-            /* Mobile refresh button */
-
-            .global-refresh-button {
-
-                left: 15px;
-
-                bottom: 15px;
-
-                min-width: 145px;
-
-                min-height: 48px;
-
-                padding:
-                    11px 16px;
-
-                font-size: 14px;
-
-                border-radius: 11px;
             }
 
         }
@@ -1699,119 +1546,6 @@
 
 
     <!-- =========================================================
-         GLOBAL REFRESH BUTTON
-
-         Appears only on:
-         - Latest News
-         - Search
-         - Your Feed
-
-         IMPORTANT:
-         No request.args.get(..., type=int) is used.
-
-         Latest News:
-             latest_page + 1
-             or 0 when there are no more pages.
-
-         Search:
-             search_page + 1
-             or 0 when there are no more pages.
-
-         Feed:
-             feed_page + 1
-             or 0 when there are no more pages.
-    ========================================================== -->
-
-    {% if current_user.is_authenticated %}
-
-
-        <!-- =====================================================
-             LATEST NEWS REFRESH
-        ====================================================== -->
-
-        {% if request.endpoint == 'main.list_articles' %}
-
-            <a
-                class="global-refresh-button"
-                href="{{ url_for(
-                    'main.list_articles',
-                    page=(latest_page + 1 if latest_has_more else 0)
-                ) }}"
-                aria-label="Refresh Latest News"
-                title="Show another set of latest news"
-            >
-
-                <span class="refresh-icon">
-                    ↻
-                </span>
-
-                <span>
-                    Refresh News
-                </span>
-
-            </a>
-
-
-        <!-- =====================================================
-             SEARCH REFRESH
-        ====================================================== -->
-
-        {% elif request.endpoint == 'main.search' and request.args.get('q', '') %}
-
-            <a
-                class="global-refresh-button"
-                href="{{ url_for(
-                    'main.search',
-                    q=request.args.get('q', ''),
-                    page=(search_page + 1 if search_has_more else 0)
-                ) }}"
-                aria-label="Refresh Search Results"
-                title="Show another set of search results"
-            >
-
-                <span class="refresh-icon">
-                    ↻
-                </span>
-
-                <span>
-                    Refresh News
-                </span>
-
-            </a>
-
-
-        <!-- =====================================================
-             PERSONALIZED FEED REFRESH
-        ====================================================== -->
-
-        {% elif request.endpoint == 'main.feed' %}
-
-            <a
-                class="global-refresh-button"
-                href="{{ url_for(
-                    'main.feed',
-                    page=(feed_page + 1 if feed_has_more else 0)
-                ) }}"
-                aria-label="Refresh Your Feed"
-                title="Show another set of personalized recommendations"
-            >
-
-                <span class="refresh-icon">
-                    ↻
-                </span>
-
-                <span>
-                    Refresh News
-                </span>
-
-            </a>
-
-        {% endif %}
-
-    {% endif %}
-
-
-    <!-- =========================================================
          BOOTSTRAP JAVASCRIPT
     ========================================================== -->
 
@@ -1822,23 +1556,15 @@
 
     <!-- =========================================================
          GLOBAL LIKE / SAVE AJAX HANDLER
-
-         Handles:
+         
+         This handles Like and Save buttons on:
          - Latest News
          - Search
          - Your Feed
          - Saved Articles
-
-         Prevents:
-         - Page reload
-         - Scroll jumping
-         - Duplicate clicks
-
-         Supports:
-         - Like
-         - Unlike
-         - Save
-         - Unsave
+         
+         It prevents a full page reload and therefore prevents
+         the browser from jumping/scrolling to another position.
     ========================================================== -->
 
     <script>
@@ -1850,9 +1576,17 @@
                 const form = event.target;
 
 
-                /* =================================================
-                   ONLY INTERCEPT LIKE AND SAVE FORMS
-                ================================================= */
+                /*
+                 * Only intercept Like and Save forms.
+                 *
+                 * Other forms such as:
+                 * - Login
+                 * - Register
+                 * - Search
+                 * - Other POST forms
+                 *
+                 * are left completely untouched.
+                 */
 
                 if (
                     !form.matches(
@@ -1865,9 +1599,15 @@
                 }
 
 
-                /* =================================================
-                   STOP NORMAL FORM SUBMISSION
-                ================================================= */
+                /*
+                 * Stop the browser's normal form submission.
+                 *
+                 * This is the important part that prevents:
+                 *
+                 * 1. Page reload
+                 * 2. Scroll jumping
+                 * 3. Losing the user's current position
+                 */
 
                 event.preventDefault();
 
@@ -1884,9 +1624,10 @@
                 }
 
 
-                /* =================================================
-                   PREVENT DOUBLE CLICKS
-                ================================================= */
+                /*
+                 * Prevent double-clicks while the request
+                 * is being processed.
+                 */
 
                 if (
                     button.dataset.processing === "true"
@@ -1899,18 +1640,22 @@
                 button.dataset.processing = "true";
 
 
-                /* =================================================
-                   SAVE CURRENT SCROLL POSITION
-                ================================================= */
+                /*
+                 * Save the exact current scroll position.
+                 */
 
                 const scrollX = window.scrollX;
 
                 const scrollY = window.scrollY;
 
 
-                /* =================================================
-                   DETERMINE LIKE OR SAVE
-                ================================================= */
+                /*
+                 * Determine whether this is:
+                 *
+                 * Like
+                 * or
+                 * Save
+                 */
 
                 const isLike =
                     form.action.endsWith("/like");
@@ -1919,17 +1664,18 @@
                     form.action.endsWith("/save");
 
 
-                /* =================================================
-                   REMEMBER ORIGINAL TEXT
-                ================================================= */
+                /*
+                 * Remember the original button text.
+                 * If something goes wrong, restore it.
+                 */
 
                 const originalText =
                     button.innerHTML;
 
 
-                /* =================================================
-                   LOADING STATE
-                ================================================= */
+                /*
+                 * Temporary loading state.
+                 */
 
                 button.disabled = true;
 
@@ -1952,10 +1698,12 @@
 
                 try {
 
-
-                    /* =================================================
-                       AJAX REQUEST
-                    ================================================= */
+                    /*
+                     * Send the POST request using fetch().
+                     *
+                     * The X-Requested-With header tells Flask
+                     * that this is an AJAX request.
+                     */
 
                     const response =
                         await fetch(
@@ -1974,17 +1722,18 @@
                         );
 
 
-                    /* =================================================
-                       CONVERT RESPONSE TO JSON
-                    ================================================= */
+                    /*
+                     * Convert Flask's JSON response
+                     * into a JavaScript object.
+                     */
 
                     const data =
                         await response.json();
 
 
-                    /* =================================================
-                       CHECK RESPONSE
-                    ================================================= */
+                    /*
+                     * Treat unsuccessful responses as errors.
+                     */
 
                     if (
                         !response.ok ||
@@ -2007,15 +1756,15 @@
 
                         if (data.liked) {
 
+                            /*
+                             * Article is now liked.
+                             */
+
                             button.innerHTML =
                                 "❤️ Liked";
 
                             button.classList.add(
                                 "liked"
-                            );
-
-                            button.classList.add(
-                                "active"
                             );
 
                             button.setAttribute(
@@ -2025,15 +1774,15 @@
 
                         } else {
 
+                            /*
+                             * Article has been unliked.
+                             */
+
                             button.innerHTML =
                                 "❤️ Like";
 
                             button.classList.remove(
                                 "liked"
-                            );
-
-                            button.classList.remove(
-                                "active"
                             );
 
                             button.setAttribute(
@@ -2054,15 +1803,15 @@
 
                         if (data.saved) {
 
+                            /*
+                             * Article is now saved.
+                             */
+
                             button.innerHTML =
                                 "🔖 Saved";
 
                             button.classList.add(
                                 "saved"
-                            );
-
-                            button.classList.add(
-                                "active"
                             );
 
                             button.setAttribute(
@@ -2072,15 +1821,15 @@
 
                         } else {
 
+                            /*
+                             * Article has been unsaved.
+                             */
+
                             button.innerHTML =
                                 "🔖 Save";
 
                             button.classList.remove(
                                 "saved"
-                            );
-
-                            button.classList.remove(
-                                "active"
                             );
 
                             button.setAttribute(
@@ -2093,9 +1842,9 @@
                     }
 
 
-                    /* =================================================
-                       RE-ENABLE BUTTON
-                    ================================================= */
+                    /*
+                     * Re-enable the button.
+                     */
 
                     button.disabled = false;
 
@@ -2103,9 +1852,9 @@
                         "false";
 
 
-                    /* =================================================
-                       RESTORE EXACT SCROLL POSITION
-                    ================================================= */
+                    /*
+                     * Restore the exact scroll position.
+                     */
 
                     window.scrollTo(
                         scrollX,
@@ -2114,9 +1863,7 @@
 
                 }
 
-
                 catch (error) {
-
 
                     console.error(
                         "Like/Save error:",
@@ -2124,12 +1871,13 @@
                     );
 
 
-                    /* =================================================
-                       RESTORE ORIGINAL BUTTON
-                    ================================================= */
+                    /*
+                     * Restore the original button.
+                     */
 
                     button.innerHTML =
                         originalText;
+
 
                     button.disabled = false;
 
@@ -2137,9 +1885,10 @@
                         "false";
 
 
-                    /* =================================================
-                       RESTORE SCROLL
-                    ================================================= */
+                    /*
+                     * Restore scroll position even
+                     * if the request failed.
+                     */
 
                     window.scrollTo(
                         scrollX,

@@ -1,114 +1,559 @@
 {% extends "base.html" %}
 
-{% block title %}Saved Articles{% endblock %}
+
+{% block title %}
+Saved Articles
+{% endblock %}
 
 
 {% block extra_head %}
 
 <style>
 
+/* =========================================================
+   SAVED PAGE
+   ========================================================= */
+
+.saved-page {
+
+    max-width: 1100px;
+
+    margin: 0 auto;
+
+    padding-bottom: 120px;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.saved-header {
+
+    margin-bottom: 30px;
+
+    padding: 28px 30px;
+
+    border-radius: 20px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #fffaf0,
+            #fffdf7
+        );
+
+    border: 1px solid #f4d9a6;
+}
+
+
+.saved-header h1 {
+
+    font-size: 38px;
+
+    font-weight: 800;
+
+    color: #111827;
+
+    margin-bottom: 8px;
+}
+
+
+.saved-header p {
+
+    color: #6b7280;
+
+    margin: 0;
+
+    font-size: 16px;
+}
+
+
+/* =========================================================
+   SAVED ARTICLE CARD
+   ========================================================= */
+
+.saved-card {
+
+    background: #ffffff;
+
+    border-radius: 18px;
+
+    overflow: hidden;
+
+    border: 1px solid #e5e7eb;
+
+    box-shadow:
+        0 8px 25px
+        rgba(15, 23, 42, 0.07);
+
+    margin-bottom: 25px;
+
+    transition:
+        opacity 0.25s ease,
+        transform 0.2s ease,
+        box-shadow 0.18s ease;
+}
+
+
+.saved-card:hover {
+
+    box-shadow:
+        0 12px 30px
+        rgba(15, 23, 42, 0.10);
+}
+
+
+/* =========================================================
+   IMAGE
+   ========================================================= */
+
+.saved-image {
+
+    width: 100%;
+
+    height: 280px;
+
+    object-fit: cover;
+
+    display: block;
+}
+
+
+/* =========================================================
+   IMAGE PLACEHOLDER
+   ========================================================= */
+
+.saved-placeholder {
+
+    height: 280px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #eef2ff,
+            #f5f3ff
+        );
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-size: 50px;
+}
+
+
+/* =========================================================
+   ARTICLE BODY
+   ========================================================= */
+
+.saved-body {
+
+    padding: 25px 28px 28px;
+}
+
+
+/* =========================================================
+   CATEGORY
+   ========================================================= */
+
+.saved-category {
+
+    display: inline-block;
+
+    padding: 6px 12px;
+
+    border-radius: 999px;
+
+    background: #ede9fe;
+
+    color: #6d28d9;
+
+    font-size: 13px;
+
+    font-weight: 700;
+
+    margin-bottom: 12px;
+}
+
+
+/* =========================================================
+   TITLE
+   ========================================================= */
+
+.saved-title {
+
+    font-size: 25px;
+
+    font-weight: 800;
+
+    line-height: 1.35;
+
+    color: #111827;
+
+    margin-bottom: 10px;
+}
+
+
+/* =========================================================
+   TITLE LINK
+   ========================================================= */
+
+.saved-title a {
+
+    color: inherit;
+
+    text-decoration: none;
+}
+
+
+.saved-title a:hover {
+
+    color: #2563eb;
+}
+
+
+/* =========================================================
+   SOURCE
+   ========================================================= */
+
+.saved-source {
+
+    color: #6b7280;
+
+    font-size: 15px;
+
+    margin-bottom: 16px;
+}
+
+
+.saved-source strong {
+
+    color: #374151;
+}
+
+
+/* =========================================================
+   CONTENT
+   ========================================================= */
+
+.saved-content {
+
+    color: #6b7280;
+
+    line-height: 1.6;
+
+    font-size: 16px;
+
+    margin-bottom: 20px;
+}
+
+
+/* =========================================================
+   ACTIONS
+   ========================================================= */
+
+.saved-actions {
+
+    display: flex;
+
+    gap: 10px;
+
+    flex-wrap: wrap;
+
+    align-items: center;
+}
+
+
+/* =========================================================
+   ACTION FORM
+   ========================================================= */
+
+.saved-action-form {
+
+    margin: 0;
+}
+
+
+/* =========================================================
+   SAVE / UNSAVE BUTTON
+
+   This works with the global AJAX handler in base.html.
+   ========================================================= */
+
+.unsave-button {
+
+    border: none;
+
+    border-radius: 9px;
+
+    padding: 10px 17px;
+
+    background: #d97706;
+
+    color: #ffffff;
+
+    font-size: 14px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition:
+        background 0.15s ease,
+        color 0.15s ease,
+        transform 0.15s ease;
+}
+
+
+.unsave-button:hover {
+
+    background: #b45309;
+
+    color: #ffffff;
+
+    transform: translateY(-1px);
+}
+
+
+.unsave-button:disabled {
+
+    opacity: 0.65;
+
+    cursor: wait;
+
+    transform: none;
+}
+
+
+/* =========================================================
+   READ ARTICLE BUTTON
+   ========================================================= */
+
+.saved-read-button {
+
+    display: inline-block;
+
+    padding: 10px 17px;
+
+    border-radius: 9px;
+
+    background: #2563eb;
+
+    color: #ffffff;
+
+    text-decoration: none;
+
+    font-size: 14px;
+
+    font-weight: 700;
+
+    transition:
+        background 0.15s ease,
+        transform 0.15s ease;
+}
+
+
+.saved-read-button:hover {
+
+    background: #1d4ed8;
+
+    color: #ffffff;
+
+    text-decoration: none;
+
+    transform: translateY(-1px);
+}
+
+
+/* =========================================================
+   EMPTY SAVED STATE
+   ========================================================= */
+
+.empty-saved {
+
+    background: #ffffff;
+
+    border: 1px solid #e5e7eb;
+
+    border-radius: 18px;
+
+    padding: 60px 25px;
+
+    text-align: center;
+
+    box-shadow:
+        0 8px 25px
+        rgba(15, 23, 42, 0.05);
+}
+
+
+.empty-saved-icon {
+
+    font-size: 55px;
+
+    margin-bottom: 15px;
+}
+
+
+.empty-saved h2 {
+
+    color: #111827;
+
+    font-size: 27px;
+
+    font-weight: 800;
+
+    margin-bottom: 10px;
+}
+
+
+.empty-saved p {
+
+    color: #6b7280;
+
+    margin: 0;
+
+    line-height: 1.6;
+}
+
+
+/* =========================================================
+   REMOVING AN ARTICLE ANIMATION
+   ========================================================= */
+
+.saved-article-wrapper.removing {
+
+    opacity: 0;
+
+    transform:
+        translateY(-8px);
+
+    pointer-events: none;
+
+    transition:
+        opacity 0.25s ease,
+        transform 0.25s ease;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+    .saved-page {
+
+        padding-bottom: 130px;
+    }
+
+
     .saved-header {
 
-        margin-bottom: 30px;
+        padding: 24px 20px;
     }
 
 
     .saved-header h1 {
 
-        font-size: 38px;
-
-        font-weight: 800;
-
-        color: #111827;
+        font-size: 32px;
     }
 
 
     .saved-header p {
 
-        color: #6b7280;
-    }
-
-
-    .saved-card {
-
-        background: white;
-
-        border-radius: 18px;
-
-        overflow: hidden;
-
-        border: 1px solid #e5e7eb;
-
-        box-shadow:
-            0 8px 25px
-            rgba(15, 23, 42, 0.07);
-
-        margin-bottom: 25px;
+        font-size: 15px;
     }
 
 
     .saved-image {
 
-        width: 100%;
-
-        height: 230px;
-
-        object-fit: cover;
+        height: 220px;
     }
 
 
     .saved-placeholder {
 
-        height: 230px;
-
-        background: #eef2ff;
-
-        display: flex;
-
-        align-items: center;
-
-        justify-content: center;
-
-        font-size: 50px;
+        height: 220px;
     }
 
 
     .saved-body {
 
-        padding: 22px;
+        padding: 20px;
     }
 
 
     .saved-title {
 
         font-size: 22px;
-
-        font-weight: 800;
-
-        line-height: 1.35;
-
-        margin-bottom: 12px;
     }
 
 
     .saved-content {
 
-        color: #6b7280;
-
-        line-height: 1.6;
-
-        margin-bottom: 18px;
+        font-size: 15px;
     }
 
 
     .saved-actions {
 
-        display: flex;
+        flex-direction: column;
 
-        gap: 10px;
-
-        flex-wrap: wrap;
+        align-items: stretch;
     }
+
+
+    .saved-action-form {
+
+        width: 100%;
+    }
+
+
+    .unsave-button,
+    .saved-read-button {
+
+        width: 100%;
+
+        text-align: center;
+    }
+
+}
+
+
+/* =========================================================
+   VERY SMALL SCREENS
+   ========================================================= */
+
+@media (max-width: 420px) {
+
+    .saved-header h1 {
+
+        font-size: 28px;
+    }
+
+
+    .saved-card {
+
+        border-radius: 14px;
+    }
+
+
+    .saved-image {
+
+        height: 190px;
+    }
+
+
+    .saved-placeholder {
+
+        height: 190px;
+    }
+
+}
 
 </style>
 
@@ -117,112 +562,432 @@
 
 {% block content %}
 
-<div class="saved-header">
-
-    <h1>🔖 Saved Articles</h1>
-
-    <p>
-        Articles you saved for reading later.
-    </p>
-
-</div>
+<div class="saved-page">
 
 
-{% if articles %}
+    <!-- =====================================================
+         HEADER
+         ===================================================== -->
 
-    <div class="row">
+    <div class="saved-header">
 
-        {% for article in articles %}
+        <h1>
+            🔖 Saved Articles
+        </h1>
 
-            <div class="col-lg-8 mx-auto">
+        <p>
+            Articles you saved for reading later.
+        </p>
 
-                <article class="saved-card">
-
-                    {% if article.image_url %}
-
-                        <img
-                            src="{{ article.image_url }}"
-                            alt="{{ article.title }}"
-                            class="saved-image"
-                            loading="lazy"
-                        >
-
-                    {% else %}
-
-                        <div class="saved-placeholder">
-                            📰
-                        </div>
-
-                    {% endif %}
+    </div>
 
 
-                    <div class="saved-body">
+    <!-- =====================================================
+         SAVED ARTICLES
+         ===================================================== -->
 
-                        <h2 class="saved-title">
-                            {{ article.title }}
-                        </h2>
+    {% if articles %}
+
+        <div
+            class="row"
+            id="saved-articles-container"
+        >
+
+            {% for article in articles %}
+
+                <div
+                    class="col-lg-8 mx-auto saved-article-wrapper"
+                    data-article-id="{{ article.id }}"
+                >
+
+                    <article class="saved-card">
 
 
-                        {% if article.source %}
+                        <!-- =====================================
+                             IMAGE
+                             ===================================== -->
 
-                            <p class="text-muted">
-                                {{ article.source }}
-                            </p>
+                        {% if article.image_url %}
 
-                        {% endif %}
+                            <img
+                                src="{{ article.image_url }}"
+                                alt="{{ article.title }}"
+                                class="saved-image"
+                                loading="lazy"
+                                onerror="
+                                    this.style.display='none';
+                                    this.nextElementSibling.style.display='flex';
+                                "
+                            >
 
+                            <div
+                                class="saved-placeholder"
+                                style="display:none;"
+                            >
+                                📰
+                            </div>
 
-                        {% if article.content %}
+                        {% else %}
 
-                            <div class="saved-content">
-
-                                {{ article.content[:500] }}
-
-                                {% if article.content|length > 500 %}
-                                    ...
-                                {% endif %}
-
+                            <div class="saved-placeholder">
+                                📰
                             </div>
 
                         {% endif %}
 
 
-                        <div class="saved-actions">
+                        <!-- =====================================
+                             ARTICLE BODY
+                             ===================================== -->
 
-                            <a
-                                href="{{ url_for(
-                                    'main.view_article',
-                                    article_id=article.id
-                                ) }}"
-                                class="btn btn-primary"
-                            >
-                                📖 Read Article
-                            </a>
+                        <div class="saved-body">
+
+
+                            <!-- =================================
+                                 CATEGORY
+                                 ================================= -->
+
+                            <div class="saved-category">
+
+                                {{ article.category or "General" }}
+
+                            </div>
+
+
+                            <!-- =================================
+                                 TITLE
+                                 ================================= -->
+
+                            <h2 class="saved-title">
+
+                                {% if article.url %}
+
+                                    <a
+                                        href="{{ url_for(
+                                            'main.view_article',
+                                            article_id=article.id
+                                        ) }}"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        {{ article.title }}
+                                    </a>
+
+                                {% else %}
+
+                                    {{ article.title }}
+
+                                {% endif %}
+
+                            </h2>
+
+
+                            <!-- =================================
+                                 SOURCE + DATE
+                                 ================================= -->
+
+                            <div class="saved-source">
+
+                                {% if article.source %}
+
+                                    <strong>
+                                        {{ article.source }}
+                                    </strong>
+
+                                {% endif %}
+
+
+                                {% if article.published_at %}
+
+                                    · {{ article.published_at }}
+
+                                {% endif %}
+
+                            </div>
+
+
+                            <!-- =================================
+                                 DESCRIPTION / CONTENT
+                                 ================================= -->
+
+                            {% if article.content %}
+
+                                <div class="saved-content">
+
+                                    {{ article.content[:500] }}
+
+                                    {% if article.content|length > 500 %}
+
+                                        ...
+
+                                    {% endif %}
+
+                                </div>
+
+                            {% endif %}
+
+
+                            <!-- =================================
+                                 ACTIONS
+                                 ================================= -->
+
+                            <div class="saved-actions">
+
+
+                                <!-- =============================
+                                     UNSAVE
+
+                                     The global AJAX handler in
+                                     base.html intercepts this
+                                     form, so the page does not
+                                     reload or scroll.
+                                     ============================= -->
+
+                                <form
+                                    method="POST"
+                                    action="{{ url_for(
+                                        'main.save_article',
+                                        article_id=article.id
+                                    ) }}"
+                                    class="saved-action-form"
+                                >
+
+                                    <button
+                                        type="submit"
+                                        class="
+                                            unsave-button
+                                            save-button
+                                            saved
+                                            active
+                                        "
+                                        aria-pressed="true"
+                                    >
+
+                                        🔖 Saved
+
+                                    </button>
+
+                                </form>
+
+
+                                <!-- =============================
+                                     READ ORIGINAL ARTICLE
+                                     ============================= -->
+
+                                {% if article.url %}
+
+                                    <a
+                                        href="{{ url_for(
+                                            'main.view_article',
+                                            article_id=article.id
+                                        ) }}"
+                                        class="saved-read-button"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+
+                                        📖 Read Article
+
+                                    </a>
+
+                                {% endif %}
+
+
+                            </div>
 
                         </div>
 
-                    </div>
+                    </article>
 
-                </article>
+                </div>
 
+            {% endfor %}
+
+        </div>
+
+
+    {% else %}
+
+
+        <!-- =================================================
+             EMPTY STATE
+             ================================================= -->
+
+        <div class="empty-saved">
+
+            <div class="empty-saved-icon">
+                🔖
             </div>
 
-        {% endfor %}
+            <h2>
+                No saved articles yet.
+            </h2>
 
-    </div>
+            <p>
+                Click 🔖 Save on any article and it will
+                appear here.
+            </p>
 
-{% else %}
+        </div>
 
-    <div class="alert alert-info">
+    {% endif %}
 
-        <h5>No saved articles yet.</h5>
 
-        <p class="mb-0">
-            Click 🔖 Save on any article and it will appear here.
-        </p>
+</div>
 
-    </div>
+{% endblock %}
 
-{% endif %}
+
+{% block scripts %}
+
+<script>
+
+document.addEventListener(
+    "submit",
+    function (event) {
+
+        const form = event.target;
+
+
+        /* =====================================================
+           ONLY HANDLE SAVE FORM ON SAVED PAGE
+        ===================================================== */
+
+        if (
+            !form.matches(
+                'form[action*="/articles/"][action$="/save"]'
+            )
+        ) {
+
+            return;
+        }
+
+
+        const wrapper =
+            form.closest(
+                ".saved-article-wrapper"
+            );
+
+
+        if (!wrapper) {
+
+            return;
+        }
+
+
+        /*
+         * base.html already performs the AJAX request.
+         *
+         * We wait for the button state to change.
+         *
+         * We do not prevent the event here because the
+         * global handler in base.html must receive it first.
+         */
+
+        setTimeout(
+            function () {
+
+                const button =
+                    form.querySelector(
+                        "button[type='submit']"
+                    );
+
+
+                if (!button) {
+
+                    return;
+                }
+
+
+                /*
+                 * After base.html receives a successful
+                 * unsave response, the button becomes:
+                 *
+                 * 🔖 Save
+                 *
+                 * and loses the "saved" class.
+                 */
+
+                if (
+                    !button.classList.contains("saved") &&
+                    !button.classList.contains("active") &&
+                    button.textContent.includes("Save")
+                ) {
+
+                    wrapper.classList.add(
+                        "removing"
+                    );
+
+
+                    setTimeout(
+                        function () {
+
+                            wrapper.remove();
+
+
+                            /*
+                             * Check whether there are
+                             * any saved articles left.
+                             */
+
+                            const container =
+                                document.getElementById(
+                                    "saved-articles-container"
+                                );
+
+
+                            if (
+                                container &&
+                                !container.querySelector(
+                                    ".saved-article-wrapper"
+                                )
+                            ) {
+
+                                const emptyState =
+                                    document.createElement(
+                                        "div"
+                                    );
+
+
+                                emptyState.className =
+                                    "empty-saved";
+
+
+                                emptyState.innerHTML = `
+                                    <div class="empty-saved-icon">
+                                        🔖
+                                    </div>
+
+                                    <h2>
+                                        No saved articles yet.
+                                    </h2>
+
+                                    <p>
+                                        Click 🔖 Save on any article
+                                        and it will appear here.
+                                    </p>
+                                `;
+
+
+                                container.replaceWith(
+                                    emptyState
+                                );
+
+                            }
+
+                        },
+                        250
+                    );
+
+                }
+
+            },
+            100
+        );
+
+    }
+);
+
+</script>
 
 {% endblock %}

@@ -4,32 +4,17 @@ app/routes.py
 Application routes for:
 - authentication
 - latest news
-- article opening
+- article details
 - likes
 - saves
 - personalized feed
 - saved articles
 - GNews news search
 - analytics
-- feed refresh
-- search refresh
-- latest-news refresh
-
-IMPORTANT:
-
-The production recommendation system is strictly user-specific.
-
-Recommendations are based ONLY on the currently logged-in user's:
-    - views
-    - likes
-    - saves
-
-No other user's interactions are used for the production feed.
 """
 
 from collections import Counter
 from datetime import datetime
-
 
 from flask import (
     Blueprint,
@@ -41,7 +26,6 @@ from flask import (
     url_for,
 )
 
-
 from flask_login import (
     current_user,
     login_required,
@@ -49,137 +33,25 @@ from flask_login import (
     logout_user,
 )
 
-
 from sqlalchemy import func
 
-
 from app import db
-from app.models import (
-    Article,
-    Interaction,
-    User,
-)
-
+from app.models import Article, Interaction, User
 
 from app.services.gnews import (
     GNewsError,
     search_news,
 )
 
-
-from ml.evaluate import evaluate_recommender
-
+from ml.evaluate import evaluate_hit_rate
 
 # IMPORTANT:
-# Production "Your Feed" uses ONLY the currently
+# Your production "Your Feed" uses ONLY the currently
 # logged-in user's own interaction history.
 from ml.recommender import personalized_recommend
 
 
-main_bp = Blueprint(
-    "main",
-    __name__,
-)
-
-
-# ============================================================
-# CONSTANTS
-# ============================================================
-
-# Number of articles displayed on one Latest News page.
-LATEST_NEWS_PAGE_SIZE = 10
-
-
-# Number of articles displayed on one Search page.
-SEARCH_PAGE_SIZE = 10
-
-
-# Number of recommendations displayed on one Feed page.
-FEED_PAGE_SIZE = 10
-
-
-# Number of personalized recommendations generated
-# before pagination.
-#
-# Example:
-#
-# Page 0 -> recommendations 1-10
-# Page 1 -> recommendations 11-20
-# Page 2 -> recommendations 21-30
-#
-# IMPORTANT:
-# These recommendations are still generated ONLY for
-# the currently logged-in user.
-FEED_RECOMMENDATION_POOL = 100
-
-
-# ============================================================
-# HELPER: AJAX REQUEST
-# ============================================================
-
-def is_ajax_request():
-    """
-    Return True when the browser sent the request using
-    XMLHttpRequest/fetch.
-
-    Like and Save use this so the page does not reload
-    after clicking the button.
-    """
-
-    return (
-        request.headers.get(
-            "X-Requested-With"
-        )
-        == "XMLHttpRequest"
-    )
-
-
-# ============================================================
-# HELPER: SAFE PAGE NUMBER
-# ============================================================
-
-def get_page_number(parameter_name="page"):
-    """
-    Read a zero-based page number from the query string.
-
-    Invalid values become page 0.
-
-    Examples:
-
-        /articles
-            -> 0
-
-        /articles?page=1
-            -> 1
-
-        /articles?page=2
-            -> 2
-
-        /articles?page=abc
-            -> 0
-
-        /articles?page=-5
-            -> 0
-    """
-
-    try:
-        page = int(
-            request.args.get(
-                parameter_name,
-                0,
-            )
-        )
-
-    except (
-        ValueError,
-        TypeError,
-    ):
-        page = 0
-
-    if page < 0:
-        page = 0
-
-    return page
+main_bp = Blueprint("main", __name__)
 
 
 # ============================================================
@@ -188,26 +60,21 @@ def get_page_number(parameter_name="page"):
 
 def get_or_create_gnews_article(gnews_article):
     """
-    Convert a GNews article dictionary into a local
-    Article database record.
+    Convert a GNews article dictionary into a local Article
+    database record.
 
-    If the URL already exists in the database, return
-    the existing article.
+    If an article with the same URL already exists, the existing
+    Article is returned.
 
-    Otherwise create a new Article.
+    If it does not exist, a new Article is created.
     """
 
     url = (
-        gnews_article.get("url")
-        or ""
+        gnews_article.get("url") or ""
     ).strip()
 
     if not url:
         return None
-
-    # --------------------------------------------------------
-    # Prevent duplicate URLs.
-    # --------------------------------------------------------
 
     article = Article.query.filter_by(
         url=url
@@ -215,10 +82,6 @@ def get_or_create_gnews_article(gnews_article):
 
     if article:
         return article
-
-    # --------------------------------------------------------
-    # Source
-    # --------------------------------------------------------
 
     source_data = (
         gnews_article.get("source")
@@ -229,27 +92,18 @@ def get_or_create_gnews_article(gnews_article):
         "name"
     )
 
-    # --------------------------------------------------------
-    # Published date
-    # --------------------------------------------------------
-
     published_at = None
 
     published_value = (
-        gnews_article.get(
-            "publishedAt"
-        )
+        gnews_article.get("publishedAt")
     )
 
     if published_value:
-
         try:
-            parsed_datetime = (
-                datetime.fromisoformat(
-                    published_value.replace(
-                        "Z",
-                        "+00:00",
-                    )
+            parsed_datetime = datetime.fromisoformat(
+                published_value.replace(
+                    "Z",
+                    "+00:00",
                 )
             )
 
@@ -267,10 +121,6 @@ def get_or_create_gnews_article(gnews_article):
             TypeError,
         ):
             published_at = None
-
-    # --------------------------------------------------------
-    # Create article
-    # --------------------------------------------------------
 
     article = Article(
         title=(
@@ -302,23 +152,7 @@ def get_or_create_gnews_article(gnews_article):
     )
 
     db.session.add(article)
-
-    try:
-        db.session.commit()
-
-    except Exception:
-        # A concurrent request may have inserted
-        # the same URL because Article.url is unique.
-        db.session.rollback()
-
-        article = Article.query.filter_by(
-            url=url
-        ).first()
-
-        if article:
-            return article
-
-        raise
+    db.session.commit()
 
     return article
 
@@ -335,15 +169,11 @@ def home():
 
     if current_user.is_authenticated:
         return redirect(
-            url_for(
-                "main.list_articles"
-            )
+            url_for("main.list_articles")
         )
 
     return redirect(
-        url_for(
-            "main.login"
-        )
+        url_for("main.login")
     )
 
 
@@ -362,31 +192,23 @@ def register():
 
     if current_user.is_authenticated:
         return redirect(
-            url_for(
-                "main.list_articles"
-            )
+            url_for("main.list_articles")
         )
 
     if request.method == "POST":
 
         username = (
-            request.form.get(
-                "username"
-            )
+            request.form.get("username")
             or ""
         ).strip()
 
         email = (
-            request.form.get(
-                "email"
-            )
+            request.form.get("email")
             or ""
         ).strip().lower()
 
         password = (
-            request.form.get(
-                "password"
-            )
+            request.form.get("password")
             or ""
         )
 
@@ -405,7 +227,6 @@ def register():
             or not email
             or not password
         ):
-
             flash(
                 "Please fill in all required fields.",
                 "danger",
@@ -416,7 +237,6 @@ def register():
             )
 
         if password != confirm_password:
-
             flash(
                 "Passwords do not match.",
                 "danger",
@@ -433,7 +253,6 @@ def register():
         )
 
         if existing_username:
-
             flash(
                 "That username is already registered.",
                 "danger",
@@ -450,7 +269,6 @@ def register():
         )
 
         if existing_email:
-
             flash(
                 "That email address is already registered.",
                 "danger",
@@ -465,9 +283,7 @@ def register():
             email=email,
         )
 
-        user.set_password(
-            password
-        )
+        user.set_password(password)
 
         db.session.add(user)
         db.session.commit()
@@ -478,9 +294,7 @@ def register():
         )
 
         return redirect(
-            url_for(
-                "main.login"
-            )
+            url_for("main.login")
         )
 
     return render_template(
@@ -503,24 +317,18 @@ def login():
 
     if current_user.is_authenticated:
         return redirect(
-            url_for(
-                "main.list_articles"
-            )
+            url_for("main.list_articles")
         )
 
     if request.method == "POST":
 
         username = (
-            request.form.get(
-                "username"
-            )
+            request.form.get("username")
             or ""
         ).strip()
 
         password = (
-            request.form.get(
-                "password"
-            )
+            request.form.get("password")
             or ""
         )
 
@@ -530,11 +338,8 @@ def login():
 
         if (
             user is None
-            or not user.check_password(
-                password
-            )
+            or not user.check_password(password)
         ):
-
             flash(
                 "Invalid username or password.",
                 "danger",
@@ -550,26 +355,16 @@ def login():
             "next"
         )
 
-        # Only allow local paths.
-        #
-        # The second condition prevents:
-        # //example.com
-        #
-        # from being treated as a safe local URL.
         if (
             next_page
             and next_page.startswith("/")
-            and not next_page.startswith("//")
         ):
-
             return redirect(
                 next_page
             )
 
         return redirect(
-            url_for(
-                "main.list_articles"
-            )
+            url_for("main.list_articles")
         )
 
     return render_template(
@@ -596,26 +391,111 @@ def logout():
     )
 
     return redirect(
-        url_for(
-            "main.login"
-        )
+        url_for("main.login")
     )
 
 
 # ============================================================
-# HELPER: USER LIKE/SAVE IDS
+# SEARCH NEWS
+# ============================================================
+
+@main_bp.route("/search")
+@login_required
+def search():
+    """
+    Search GNews for news articles.
+
+    GNews results are converted into local Article records
+    so they can use:
+    - Like
+    - Save
+    - View
+    - Analytics
+    - Recommendations
+    """
+
+    query = (
+        request.args.get("q") or ""
+    ).strip()
+
+    if not query:
+        return render_template(
+            "search.html",
+            query="",
+            articles=[],
+            error=None,
+        )
+
+    try:
+
+        gnews_articles = search_news(
+            query=query,
+            max_articles=10,
+        )
+
+    except GNewsError as exc:
+
+        print(
+            f"GNews search error: {exc}"
+        )
+
+        return render_template(
+            "search.html",
+            query=query,
+            articles=[],
+            error=str(exc),
+        )
+
+    articles = []
+
+    for gnews_article in gnews_articles:
+
+        try:
+
+            article = (
+                get_or_create_gnews_article(
+                    gnews_article
+                )
+            )
+
+            if article is not None:
+                articles.append(
+                    article
+                )
+
+        except Exception as exc:
+
+            db.session.rollback()
+
+            print(
+                f"Could not save GNews article: {exc}"
+            )
+
+    liked_ids, saved_ids = (
+        get_user_action_ids()
+    )
+
+    return render_template(
+        "search.html",
+        query=query,
+        articles=articles,
+        liked_ids=liked_ids,
+        saved_ids=saved_ids,
+        error=None,
+    )
+
+
+# ============================================================
+# HELPER: USER INTERACTION IDS
 # ============================================================
 
 def get_user_action_ids():
     """
-    Return the currently logged-in user's:
-
-        liked article IDs
-        saved article IDs
+    Return sets containing the current user's liked and saved
+    article IDs.
 
     IMPORTANT:
-
-    These IDs come ONLY from current_user.id.
+    These IDs belong ONLY to the currently logged-in user.
     """
 
     interactions = (
@@ -658,290 +538,6 @@ def get_user_action_ids():
 
 
 # ============================================================
-# SEARCH NEWS
-# ============================================================
-
-@main_bp.route("/search")
-@login_required
-def search():
-    """
-    Search GNews.
-
-    Application pages are zero-based:
-
-        page=0 -> GNews page 1
-        page=1 -> GNews page 2
-        page=2 -> GNews page 3
-
-    Each page contains up to SEARCH_PAGE_SIZE articles.
-    """
-
-    query = (
-        request.args.get("q")
-        or ""
-    ).strip()
-
-    # --------------------------------------------------------
-    # No query
-    # --------------------------------------------------------
-
-    if not query:
-
-        return render_template(
-            "search.html",
-
-            query="",
-
-            articles=[],
-
-            error=None,
-
-            liked_ids=set(),
-
-            saved_ids=set(),
-
-            search_page=0,
-
-            search_has_more=False,
-        )
-
-    # --------------------------------------------------------
-    # Current page
-    # --------------------------------------------------------
-
-    requested_page = get_page_number(
-        "page"
-    )
-
-    # Application is zero-based.
-    # GNews is one-based.
-    gnews_page = (
-        requested_page + 1
-    )
-
-    # --------------------------------------------------------
-    # Get news from GNews
-    # --------------------------------------------------------
-
-    try:
-
-        gnews_articles = search_news(
-            query=query,
-            max_articles=SEARCH_PAGE_SIZE,
-            page=gnews_page,
-        )
-
-    except GNewsError as exc:
-
-        print(
-            f"GNews search error: {exc}"
-        )
-
-        return render_template(
-            "search.html",
-
-            query=query,
-
-            articles=[],
-
-            liked_ids=set(),
-
-            saved_ids=set(),
-
-            search_page=requested_page,
-
-            search_has_more=False,
-
-            error=str(exc),
-        )
-
-    except TypeError as exc:
-
-        # This normally means gnews.py still has
-        # the older function signature without page=.
-        print(
-            f"GNews pagination error: {exc}"
-        )
-
-        error_message = (
-            "Search pagination is not enabled yet. "
-            "Please update app/services/gnews.py "
-            "to support the page parameter."
-        )
-
-        return render_template(
-            "search.html",
-
-            query=query,
-
-            articles=[],
-
-            liked_ids=set(),
-
-            saved_ids=set(),
-
-            search_page=requested_page,
-
-            search_has_more=False,
-
-            error=error_message,
-        )
-
-    # --------------------------------------------------------
-    # Convert GNews results to local database articles.
-    # --------------------------------------------------------
-
-    articles = []
-
-    for gnews_article in gnews_articles:
-
-        try:
-
-            article = (
-                get_or_create_gnews_article(
-                    gnews_article
-                )
-            )
-
-            if article is not None:
-
-                articles.append(
-                    article
-                )
-
-        except Exception as exc:
-
-            db.session.rollback()
-
-            print(
-                f"Could not save GNews article: {exc}"
-            )
-
-    # --------------------------------------------------------
-    # If a requested page is empty, return to page 0.
-    # --------------------------------------------------------
-
-    if (
-        not articles
-        and requested_page > 0
-    ):
-
-        return redirect(
-            url_for(
-                "main.search",
-                q=query,
-                page=0,
-            )
-        )
-
-    # --------------------------------------------------------
-    # If we received a full page, another page may exist.
-    # --------------------------------------------------------
-
-    search_has_more = (
-        len(articles)
-        >= SEARCH_PAGE_SIZE
-    )
-
-    liked_ids, saved_ids = (
-        get_user_action_ids()
-    )
-
-    return render_template(
-        "search.html",
-
-        query=query,
-
-        articles=articles,
-
-        liked_ids=liked_ids,
-
-        saved_ids=saved_ids,
-
-        error=None,
-
-        search_page=requested_page,
-
-        search_has_more=search_has_more,
-    )
-
-
-# ============================================================
-# SEARCH REFRESH
-# ============================================================
-
-@main_bp.route(
-    "/search/refresh",
-    methods=["POST"],
-)
-@login_required
-def refresh_search():
-    """
-    Calculate the next Search page.
-
-    The actual news are loaded by /search.
-    """
-
-    data = (
-        request.get_json(
-            silent=True
-        )
-        or {}
-    )
-
-    query = (
-        data.get("query")
-        or ""
-    ).strip()
-
-    if not query:
-
-        return jsonify(
-            {
-                "success": False,
-                "error": "Search query is required.",
-            }
-        ), 400
-
-    try:
-
-        current_page = int(
-            data.get(
-                "page",
-                0,
-            )
-        )
-
-    except (
-        ValueError,
-        TypeError,
-    ):
-
-        current_page = 0
-
-    if current_page < 0:
-        current_page = 0
-
-    next_page = (
-        current_page + 1
-    )
-
-    return jsonify(
-        {
-            "success": True,
-
-            "next_page": next_page,
-
-            "redirect_url": url_for(
-                "main.search",
-                q=query,
-                page=next_page,
-            ),
-        }
-    )
-
-
-# ============================================================
 # LATEST NEWS
 # ============================================================
 
@@ -949,27 +545,8 @@ def refresh_search():
 @login_required
 def list_articles():
     """
-    Display latest local news articles.
-
-    Pagination:
-
-        page=0 -> articles 1-10
-        page=1 -> articles 11-20
-        page=2 -> articles 21-30
+    Display the latest news articles.
     """
-
-    requested_page = get_page_number(
-        "page"
-    )
-
-    offset = (
-        requested_page
-        * LATEST_NEWS_PAGE_SIZE
-    )
-
-    # --------------------------------------------------------
-    # Load current page.
-    # --------------------------------------------------------
 
     articles = (
         Article.query
@@ -977,50 +554,8 @@ def list_articles():
             Article.created_at.desc(),
             Article.id.desc(),
         )
-        .offset(offset)
-        .limit(
-            LATEST_NEWS_PAGE_SIZE
-        )
+        .limit(50)
         .all()
-    )
-
-    # --------------------------------------------------------
-    # If user reaches beyond the last page,
-    # return to page 0.
-    # --------------------------------------------------------
-
-    if (
-        not articles
-        and requested_page > 0
-    ):
-
-        return redirect(
-            url_for(
-                "main.list_articles",
-                page=0,
-            )
-        )
-
-    # --------------------------------------------------------
-    # Determine whether another page exists.
-    # --------------------------------------------------------
-
-    next_article = (
-        Article.query
-        .order_by(
-            Article.created_at.desc(),
-            Article.id.desc(),
-        )
-        .offset(
-            offset
-            + LATEST_NEWS_PAGE_SIZE
-        )
-        .limit(1)
-        .first()
-    )
-
-    latest_has_more = (
-        next_article is not None
     )
 
     liked_ids, saved_ids = (
@@ -1029,81 +564,14 @@ def list_articles():
 
     return render_template(
         "articles.html",
-
         articles=articles,
-
         liked_ids=liked_ids,
-
         saved_ids=saved_ids,
-
-        latest_page=requested_page,
-
-        latest_has_more=latest_has_more,
     )
 
 
 # ============================================================
-# LATEST NEWS REFRESH
-# ============================================================
-
-@main_bp.route(
-    "/articles/refresh",
-    methods=["POST"],
-)
-@login_required
-def refresh_latest_articles():
-    """
-    Calculate the next Latest News page.
-
-    The actual articles are loaded by /articles.
-    """
-
-    data = (
-        request.get_json(
-            silent=True
-        )
-        or {}
-    )
-
-    try:
-
-        current_page = int(
-            data.get(
-                "page",
-                0,
-            )
-        )
-
-    except (
-        ValueError,
-        TypeError,
-    ):
-
-        current_page = 0
-
-    if current_page < 0:
-        current_page = 0
-
-    next_page = (
-        current_page + 1
-    )
-
-    return jsonify(
-        {
-            "success": True,
-
-            "next_page": next_page,
-
-            "redirect_url": url_for(
-                "main.list_articles",
-                page=next_page,
-            ),
-        }
-    )
-
-
-# ============================================================
-# ARTICLE OPEN
+# ARTICLE OPEN / DIRECT REDIRECT
 # ============================================================
 
 @main_bp.route(
@@ -1112,18 +580,26 @@ def refresh_latest_articles():
 @login_required
 def view_article(article_id):
     """
-    Record a view and immediately redirect to the
-    original publisher article.
+    Record a view and immediately open the original news article.
 
-    Every opening creates a NEW view interaction.
+    The application does not show an intermediate article-detail
+    page.
 
-    Example:
+    Flow:
 
-        Article 100 -> 1 view
-        Article 100 -> 2 views
-        Article 100 -> 3 views
-
-    This allows analytics to count repeated views.
+        User clicks "Read Full Article"
+                    |
+                    v
+            Find local Article
+                    |
+                    v
+            Record view interaction
+                    |
+                    v
+          Redirect to article.url
+                    |
+                    v
+          Original news website
     """
 
     article = db.session.get(
@@ -1139,33 +615,44 @@ def view_article(article_id):
         )
 
         return redirect(
-            url_for(
-                "main.list_articles"
-            )
+            url_for("main.list_articles")
         )
 
     # --------------------------------------------------------
-    # Record EVERY view.
+    # Record view.
+    #
+    # Only create one view interaction for the article/user.
     # --------------------------------------------------------
 
-    interaction = Interaction(
-        user_id=current_user.id,
-        article_id=article.id,
-        type="view",
+    existing_view = (
+        Interaction.query
+        .filter_by(
+            user_id=current_user.id,
+            article_id=article.id,
+            type="view",
+        )
+        .first()
     )
 
-    db.session.add(
-        interaction
-    )
+    if existing_view is None:
 
-    db.session.commit()
+        interaction = Interaction(
+            user_id=current_user.id,
+            article_id=article.id,
+            type="view",
+        )
+
+        db.session.add(
+            interaction
+        )
+
+        db.session.commit()
 
     # --------------------------------------------------------
-    # Open original publisher.
+    # Open original article.
     # --------------------------------------------------------
 
     if article.url:
-
         return redirect(
             article.url
         )
@@ -1176,14 +663,12 @@ def view_article(article_id):
     )
 
     return redirect(
-        url_for(
-            "main.list_articles"
-        )
+        url_for("main.list_articles")
     )
 
 
 # ============================================================
-# LIKE / UNLIKE
+# LIKE / UNLIKE ARTICLE
 # ============================================================
 
 @main_bp.route(
@@ -1196,12 +681,14 @@ def like_article(article_id):
     Toggle like/unlike for the current user.
 
     First click:
-        Like
+        Like article.
 
     Second click:
-        Unlike
+        Unlike article.
 
-    AJAX requests receive JSON and do not reload the page.
+    AJAX requests receive JSON so the page does not reload.
+
+    Normal form requests are also supported as a fallback.
     """
 
     article = db.session.get(
@@ -1209,9 +696,15 @@ def like_article(article_id):
         article_id,
     )
 
+    # --------------------------------------------------------
+    # ARTICLE NOT FOUND
+    # --------------------------------------------------------
+
     if article is None:
 
-        if is_ajax_request():
+        if request.headers.get(
+            "X-Requested-With"
+        ) == "XMLHttpRequest":
 
             return jsonify(
                 {
@@ -1226,10 +719,12 @@ def like_article(article_id):
         )
 
         return redirect(
-            url_for(
-                "main.list_articles"
-            )
+            url_for("main.list_articles")
         )
+
+    # --------------------------------------------------------
+    # FIND EXISTING LIKE
+    # --------------------------------------------------------
 
     existing_like = (
         Interaction.query
@@ -1242,7 +737,7 @@ def like_article(article_id):
     )
 
     # --------------------------------------------------------
-    # UNLIKE
+    # ALREADY LIKED -> UNLIKE
     # --------------------------------------------------------
 
     if existing_like:
@@ -1255,12 +750,10 @@ def like_article(article_id):
 
         liked = False
 
-        message = (
-            "Article unliked."
-        )
+        message = "Article unliked."
 
     # --------------------------------------------------------
-    # LIKE
+    # NOT LIKED -> LIKE
     # --------------------------------------------------------
 
     else:
@@ -1279,22 +772,20 @@ def like_article(article_id):
 
         liked = True
 
-        message = (
-            "Article liked."
-        )
+        message = "Article liked."
 
     # --------------------------------------------------------
     # AJAX RESPONSE
     # --------------------------------------------------------
 
-    if is_ajax_request():
+    if request.headers.get(
+        "X-Requested-With"
+    ) == "XMLHttpRequest":
 
         return jsonify(
             {
                 "success": True,
-
                 "liked": liked,
-
                 "message": message,
             }
         )
@@ -1310,14 +801,12 @@ def like_article(article_id):
 
     return redirect(
         request.referrer
-        or url_for(
-            "main.list_articles"
-        )
+        or url_for("main.list_articles")
     )
 
 
 # ============================================================
-# SAVE / UNSAVE
+# SAVE / UNSAVE ARTICLE
 # ============================================================
 
 @main_bp.route(
@@ -1330,12 +819,14 @@ def save_article(article_id):
     Toggle save/unsave for the current user.
 
     First click:
-        Save
+        Save article.
 
     Second click:
-        Unsave
+        Unsave article.
 
-    AJAX requests receive JSON and do not reload the page.
+    AJAX requests receive JSON so the page does not reload.
+
+    Normal form requests are also supported as a fallback.
     """
 
     article = db.session.get(
@@ -1343,9 +834,15 @@ def save_article(article_id):
         article_id,
     )
 
+    # --------------------------------------------------------
+    # ARTICLE NOT FOUND
+    # --------------------------------------------------------
+
     if article is None:
 
-        if is_ajax_request():
+        if request.headers.get(
+            "X-Requested-With"
+        ) == "XMLHttpRequest":
 
             return jsonify(
                 {
@@ -1360,10 +857,12 @@ def save_article(article_id):
         )
 
         return redirect(
-            url_for(
-                "main.list_articles"
-            )
+            url_for("main.list_articles")
         )
+
+    # --------------------------------------------------------
+    # FIND EXISTING SAVE
+    # --------------------------------------------------------
 
     existing_save = (
         Interaction.query
@@ -1376,7 +875,7 @@ def save_article(article_id):
     )
 
     # --------------------------------------------------------
-    # UNSAVE
+    # ALREADY SAVED -> UNSAVE
     # --------------------------------------------------------
 
     if existing_save:
@@ -1389,12 +888,10 @@ def save_article(article_id):
 
         saved = False
 
-        message = (
-            "Article unsaved."
-        )
+        message = "Article unsaved."
 
     # --------------------------------------------------------
-    # SAVE
+    # NOT SAVED -> SAVE
     # --------------------------------------------------------
 
     else:
@@ -1413,22 +910,20 @@ def save_article(article_id):
 
         saved = True
 
-        message = (
-            "Article saved."
-        )
+        message = "Article saved."
 
     # --------------------------------------------------------
     # AJAX RESPONSE
     # --------------------------------------------------------
 
-    if is_ajax_request():
+    if request.headers.get(
+        "X-Requested-With"
+    ) == "XMLHttpRequest":
 
         return jsonify(
             {
                 "success": True,
-
                 "saved": saved,
-
                 "message": message,
             }
         )
@@ -1444,9 +939,7 @@ def save_article(article_id):
 
     return redirect(
         request.referrer
-        or url_for(
-            "main.list_articles"
-        )
+        or url_for("main.list_articles")
     )
 
 
@@ -1475,7 +968,6 @@ def saved_articles():
     )
 
     articles = []
-
     seen_article_ids = set()
 
     for interaction in saved_interactions:
@@ -1502,11 +994,8 @@ def saved_articles():
 
     return render_template(
         "saved.html",
-
         articles=articles,
-
         liked_ids=liked_ids,
-
         saved_ids=saved_ids,
     )
 
@@ -1519,15 +1008,16 @@ def saved_articles():
 @login_required
 def feed():
     """
-    Generate the strictly personalized feed.
+    Generate a strictly personalized feed for the
+    currently logged-in user.
 
     IMPORTANT:
 
-    The production recommender receives ONLY:
+    The recommendation engine receives ONLY:
 
         current_user.id
 
-    The recommender itself uses ONLY this user's:
+    The recommender then uses ONLY that user's:
 
         - views
         - likes
@@ -1540,53 +1030,38 @@ def feed():
         - collaborative filtering
         - NCF recommendations
 
-    Refreshing the feed displays another page from the
-    same user's personalized recommendation pool.
+    Therefore:
+
+        User 1 -> User 1 interaction history -> User 1 feed
+
+        User 2 -> User 2 interaction history -> User 2 feed
     """
-
-    requested_page = get_page_number(
-        "page"
-    )
-
-    # --------------------------------------------------------
-    # IMPORTANT:
-    #
-    # Only the logged-in user's ID is supplied.
-    # --------------------------------------------------------
-
-    user_id = current_user.id
 
     try:
 
-        # The improved recommender receives ONLY the logged-in
-        # user's ID. It builds the preference profile from that
-        # user's own views, likes and saves, then performs
-        # personalized scoring, recency scoring, category
-        # preference scoring and diversity-aware re-ranking.
+        # ----------------------------------------------------
+        # THIS IS THE MOST IMPORTANT LINE.
+        #
+        # current_user.id identifies the user who is currently
+        # logged into the application.
+        # ----------------------------------------------------
+
+        user_id = current_user.id
+
         recommendations = personalized_recommend(
-            user_id=current_user.id,
-            top_n=FEED_RECOMMENDATION_POOL,
+            user_id=user_id,
+            top_n=20,
         )
 
     except Exception as exc:
 
         print(
-            "Personalized recommendation error: "
-            f"{exc}"
+            f"Personalized recommendation error: {exc}"
         )
 
         recommendations = []
 
-    all_articles = []
-
-    # --------------------------------------------------------
-    # Convert recommender output into:
-    #
-    # {
-    #     "article": Article,
-    #     "score": score
-    # }
-    # --------------------------------------------------------
+    articles = []
 
     for item in recommendations:
 
@@ -1594,7 +1069,7 @@ def feed():
         score = None
 
         # ----------------------------------------------------
-        # Dictionary output
+        # Dictionary output.
         # ----------------------------------------------------
 
         if isinstance(
@@ -1618,11 +1093,12 @@ def feed():
                 )
 
         # ----------------------------------------------------
-        # Tuple/list output
+        # Tuple/list output.
         #
-        # Expected:
+        # personalized_recommend() currently returns:
         #
         #     (article_id, score)
+        #
         # ----------------------------------------------------
 
         elif isinstance(
@@ -1644,7 +1120,7 @@ def feed():
                 score = item[1]
 
         # ----------------------------------------------------
-        # Plain article ID
+        # Plain article ID.
         # ----------------------------------------------------
 
         elif isinstance(
@@ -1659,60 +1135,12 @@ def feed():
 
         if article is not None:
 
-            all_articles.append(
+            articles.append(
                 {
                     "article": article,
                     "score": score,
                 }
             )
-
-    # --------------------------------------------------------
-    # PAGINATION
-    #
-    # page=0 -> recommendations 1-10
-    # page=1 -> recommendations 11-20
-    # page=2 -> recommendations 21-30
-    # --------------------------------------------------------
-
-    start_index = (
-        requested_page
-        * FEED_PAGE_SIZE
-    )
-
-    end_index = (
-        start_index
-        + FEED_PAGE_SIZE
-    )
-
-    articles = all_articles[
-        start_index:end_index
-    ]
-
-    # --------------------------------------------------------
-    # If the user reaches the end of the recommendation pool,
-    # return to page 0.
-    # --------------------------------------------------------
-
-    if (
-        not articles
-        and requested_page > 0
-    ):
-
-        return redirect(
-            url_for(
-                "main.feed",
-                page=0,
-            )
-        )
-
-    # --------------------------------------------------------
-    # Determine whether another recommendation page exists.
-    # --------------------------------------------------------
-
-    feed_has_more = (
-        end_index
-        < len(all_articles)
-    )
 
     liked_ids, saved_ids = (
         get_user_action_ids()
@@ -1720,90 +1148,9 @@ def feed():
 
     return render_template(
         "feed.html",
-
         recommendations=articles,
-
         liked_ids=liked_ids,
-
         saved_ids=saved_ids,
-
-        feed_page=requested_page,
-
-        feed_total=len(
-            all_articles
-        ),
-
-        feed_has_more=feed_has_more,
-    )
-
-
-# ============================================================
-# FEED REFRESH
-# ============================================================
-
-@main_bp.route(
-    "/feed/refresh",
-    methods=["POST"],
-)
-@login_required
-def refresh_feed():
-    """
-    Calculate the next personalized feed page.
-
-    IMPORTANT:
-
-    This endpoint does not create recommendations.
-
-    The actual recommendation is still generated by:
-
-        personalized_recommend(
-            user_id=current_user.id
-        )
-
-    Therefore the feed remains user-specific.
-    """
-
-    data = (
-        request.get_json(
-            silent=True
-        )
-        or {}
-    )
-
-    try:
-
-        current_page = int(
-            data.get(
-                "page",
-                0,
-            )
-        )
-
-    except (
-        ValueError,
-        TypeError,
-    ):
-
-        current_page = 0
-
-    if current_page < 0:
-        current_page = 0
-
-    next_page = (
-        current_page + 1
-    )
-
-    return jsonify(
-        {
-            "success": True,
-
-            "next_page": next_page,
-
-            "redirect_url": url_for(
-                "main.feed",
-                page=next_page,
-            ),
-        }
     )
 
 
@@ -1832,18 +1179,6 @@ def analytics():
     - Hit Rate@5
     - Hit Rate@10
     - Hit Rate@20
-    - MRR@5
-    - MRR@10
-    - MRR@20
-    - NDCG@5
-    - NDCG@10
-    - NDCG@20
-    - average recommendation rank
-
-    IMPORTANT:
-
-    User interaction statistics below are based only on
-    current_user.id.
     """
 
     user_id = current_user.id
@@ -1881,17 +1216,9 @@ def analytics():
         if interaction.type == "save"
     ]
 
-    total_views = len(
-        views
-    )
-
-    total_likes = len(
-        likes
-    )
-
-    total_saves = len(
-        saves
-    )
+    total_views = len(views)
+    total_likes = len(likes)
+    total_saves = len(saves)
 
     unique_viewed_articles = len(
         {
@@ -1917,9 +1244,7 @@ def analytics():
             .isoformat()
         )
 
-        views_by_date[
-            date_key
-        ] += 1
+        views_by_date[date_key] += 1
 
     views_dates = sorted(
         views_by_date.keys()
@@ -1943,19 +1268,16 @@ def analytics():
             Article.category
         )
         .order_by(
-            func.count(
-                Article.id
-            ).desc()
+            func.count(Article.id).desc()
         )
         .all()
     )
 
     available_category_counts = {}
 
-    for (
-        category,
-        count,
-    ) in available_category_rows:
+    for category, count in (
+        available_category_rows
+    ):
 
         category_name = (
             category
@@ -1983,21 +1305,15 @@ def analytics():
             Article.id,
             Article.title,
             Article.category,
-            func.count(
-                Interaction.id
-            ),
+            func.count(Interaction.id),
         )
         .join(
             Interaction,
-            Interaction.article_id
-            == Article.id,
+            Interaction.article_id == Article.id,
         )
         .filter(
-            Interaction.user_id
-            == user_id,
-
-            Interaction.type
-            == "view",
+            Interaction.user_id == user_id,
+            Interaction.type == "view",
         )
         .group_by(
             Article.id,
@@ -2005,9 +1321,7 @@ def analytics():
             Article.category,
         )
         .order_by(
-            func.count(
-                Interaction.id
-            ).desc()
+            func.count(Interaction.id).desc()
         )
         .all()
     )
@@ -2024,14 +1338,11 @@ def analytics():
         viewed_articles.append(
             {
                 "id": article_id,
-
                 "title": title,
-
                 "category": (
                     category
                     or "Unknown"
                 ),
-
                 "views": count,
             }
         )
@@ -2061,9 +1372,7 @@ def analytics():
     )
 
     view_category_values = [
-        views_by_category[
-            category
-        ]
+        views_by_category[category]
         for category in view_categories
     ]
 
@@ -2092,9 +1401,7 @@ def analytics():
     )
 
     liked_category_values = [
-        liked_categories_counter[
-            category
-        ]
+        liked_categories_counter[category]
         for category in liked_categories
     ]
 
@@ -2123,127 +1430,80 @@ def analytics():
     )
 
     saved_category_values = [
-        saved_categories_counter[
-            category
-        ]
+        saved_categories_counter[category]
         for category in saved_categories
     ]
 
     # ========================================================
-    # RECOMMENDATION METRICS
+    # SYSTEM RECOMMENDATION METRICS
     # ========================================================
-    #
-    # Run the upgraded evaluator once. It calculates Hit Rate,
-    # MRR and NDCG from the same leave-one-out evaluation.
-    #
-    # Each user's evaluation uses only that user's own
-    # interaction history.
-    # ========================================================
+
+    # --------------------------------------------------------
+    # Hit Rate@5
+    # --------------------------------------------------------
 
     try:
 
-        evaluation = evaluate_recommender(
-            k_values=(5, 10, 20)
-        )
-
-        evaluation_metrics = (
-            evaluation.get("metrics", {})
-        )
-
-        hit_rate_5 = (
-            evaluation_metrics
-            .get(5, {})
-            .get("hit_rate")
-        )
-
-        hit_rate_10 = (
-            evaluation_metrics
-            .get(10, {})
-            .get("hit_rate")
-        )
-
-        hit_rate_20 = (
-            evaluation_metrics
-            .get(20, {})
-            .get("hit_rate")
-        )
-
-        mrr_5 = (
-            evaluation_metrics
-            .get(5, {})
-            .get("mrr")
-        )
-
-        mrr_10 = (
-            evaluation_metrics
-            .get(10, {})
-            .get("mrr")
-        )
-
-        mrr_20 = (
-            evaluation_metrics
-            .get(20, {})
-            .get("mrr")
-        )
-
-        ndcg_5 = (
-            evaluation_metrics
-            .get(5, {})
-            .get("ndcg")
-        )
-
-        ndcg_10 = (
-            evaluation_metrics
-            .get(10, {})
-            .get("ndcg")
-        )
-
-        ndcg_20 = (
-            evaluation_metrics
-            .get(20, {})
-            .get("ndcg")
-        )
-
-        evaluated_users = evaluation.get(
-            "evaluated_users",
-            0,
-        )
-
-        skipped_users = evaluation.get(
-            "skipped_users",
-            0,
-        )
-
-        average_rank = evaluation.get(
-            "average_rank"
+        hit_rate_5, evaluated_users_5 = (
+            evaluate_hit_rate(
+                k=5
+            )
         )
 
     except Exception as exc:
 
         print(
-            "Analytics recommendation evaluation error: "
-            f"{exc}"
+            f"Analytics Hit Rate@5 error: {exc}"
         )
 
         hit_rate_5 = None
+        evaluated_users_5 = 0
+
+    # --------------------------------------------------------
+    # Hit Rate@10
+    # --------------------------------------------------------
+
+    try:
+
+        hit_rate_10, evaluated_users_10 = (
+            evaluate_hit_rate(
+                k=10
+            )
+        )
+
+    except Exception as exc:
+
+        print(
+            f"Analytics Hit Rate@10 error: {exc}"
+        )
+
         hit_rate_10 = None
+        evaluated_users_10 = 0
+
+    # --------------------------------------------------------
+    # Hit Rate@20
+    # --------------------------------------------------------
+
+    try:
+
+        hit_rate_20, evaluated_users_20 = (
+            evaluate_hit_rate(
+                k=20
+            )
+        )
+
+    except Exception as exc:
+
+        print(
+            f"Analytics Hit Rate@20 error: {exc}"
+        )
+
         hit_rate_20 = None
+        evaluated_users_20 = 0
 
-        mrr_5 = None
-        mrr_10 = None
-        mrr_20 = None
-
-        ndcg_5 = None
-        ndcg_10 = None
-        ndcg_20 = None
-
-        evaluated_users = 0
-        skipped_users = 0
-        average_rank = None
-
-    # ========================================================
-    # FORMAT HIT-RATE PERCENTAGES
-    # ========================================================
+    # --------------------------------------------------------
+    # Format percentages for the template.
+    # --------------------------------------------------------
 
     if hit_rate_5 is None:
 
@@ -2281,29 +1541,36 @@ def analytics():
             f"{hit_rate_20:.1%}"
         )
 
-    # evaluated_users already comes from the upgraded evaluation run.
+    # --------------------------------------------------------
+    # Use the same evaluation population for the dashboard.
+    # --------------------------------------------------------
+
+    evaluated_users = max(
+        evaluated_users_5,
+        evaluated_users_10,
+        evaluated_users_20,
+    )
 
     # ========================================================
-    # RENDER ANALYTICS
+    # RENDER
     # ========================================================
 
     return render_template(
         "analytics.html",
 
+        # Summary cards
         total_views=total_views,
-
         total_likes=total_likes,
-
         total_saves=total_saves,
-
         unique_viewed_articles=(
             unique_viewed_articles
         ),
 
+        # Views over time
         views_dates=views_dates,
-
         views_counts=views_counts,
 
+        # Available categories
         available_categories=(
             available_categories
         ),
@@ -2312,6 +1579,7 @@ def analytics():
             available_category_values
         ),
 
+        # Views by category
         view_categories=(
             view_categories
         ),
@@ -2320,10 +1588,12 @@ def analytics():
             view_category_values
         ),
 
+        # Article views
         viewed_articles=(
             viewed_articles
         ),
 
+        # Liked categories
         liked_categories=(
             liked_categories
         ),
@@ -2332,6 +1602,7 @@ def analytics():
             liked_category_values
         ),
 
+        # Saved categories
         saved_categories=(
             saved_categories
         ),
@@ -2340,6 +1611,7 @@ def analytics():
             saved_category_values
         ),
 
+        # Recommendation metrics
         hit_rate=hit_rate_5_display,
 
         hit_rate_5=hit_rate_5_display,
@@ -2348,16 +1620,5 @@ def analytics():
 
         hit_rate_20=hit_rate_20_display,
 
-        mrr_5=mrr_5,
-        mrr_10=mrr_10,
-        mrr_20=mrr_20,
-
-        ndcg_5=ndcg_5,
-        ndcg_10=ndcg_10,
-        ndcg_20=ndcg_20,
-
-        average_rank=average_rank,
-
         evaluated_users=evaluated_users,
-        skipped_users=skipped_users,
     )

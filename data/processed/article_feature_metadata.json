@@ -1,0 +1,37 @@
+{
+  "number_of_articles": 623,
+  "database_source": true,
+  "database_order": "Article.id ASC",
+  "article_id_alignment": "articles_index.json id -> feature row",
+  "explicit_article_ids": true,
+  "unique_article_ids": true,
+  "minimum_article_id": 1,
+  "maximum_article_id": 623,
+  "text_features": 5000,
+  "title_description_features": 2000,
+  "category_features": 9,
+  "recency_features": 1,
+  "combined_features": 7010,
+  "text_weight": 1.0,
+  "title_weight": 1.5,
+  "category_weight": 1.0,
+  "recency_weight": 1.0,
+  "recency_decay_days": 30.0,
+  "feature_groups": [
+    "tfidf_article_text",
+    "tfidf_title_description",
+    "category",
+    "recency"
+  ],
+  "categories": [
+    "business",
+    "entertainment",
+    "general",
+    "health",
+    "india",
+    "science",
+    "sports",
+    "technology",
+    "world"
+  ]
+}

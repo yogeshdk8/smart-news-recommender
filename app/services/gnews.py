@@ -15,13 +15,14 @@ class GNewsError(Exception):
     """Raised when the GNews API request fails."""
 
 
-def search_news(query, max_articles=10):
+def search_news(query, max_articles=10, page=1):
     """
     Search GNews for articles matching the user's query.
 
     Parameters:
         query: User's search text.
         max_articles: Number of articles to request.
+        page: GNews result page number.
 
     Returns:
         List of GNews article dictionaries.
@@ -42,11 +43,28 @@ def search_news(query, max_articles=10):
             "GNEWS_API_KEY is not configured."
         )
 
+    # Make sure page is always a valid positive integer.
+    try:
+        page = int(page)
+    except (TypeError, ValueError):
+        page = 1
+
+    page = max(page, 1)
+
+    # GNews allows a maximum of 10 articles per request.
+    try:
+        max_articles = int(max_articles)
+    except (TypeError, ValueError):
+        max_articles = 10
+
+    max_articles = max(1, min(max_articles, 10))
+
     params = {
         "q": query,
         "lang": "en",
         "sortby": "publishedAt",
-        "max": min(max_articles, 10),
+        "max": max_articles,
+        "page": page,
     }
 
     headers = {
@@ -85,6 +103,7 @@ def search_news(query, max_articles=10):
 
     try:
         data = response.json()
+
     except ValueError as exc:
         raise GNewsError(
             "GNews returned an invalid JSON response."
